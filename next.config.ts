@@ -6,7 +6,6 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "2mb",
     },
   },
-  serverExternalPackages: ["@moss-dev/moss", "@moss-dev/moss-core"],
 };
 
 export default nextConfig;
