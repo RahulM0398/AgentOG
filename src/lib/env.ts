@@ -1,3 +1,6 @@
+/** Canonical production demo URL — override per deploy via APP_BASE_URL / NEXT_PUBLIC_APP_URL. */
+export const CANONICAL_PUBLIC_ORIGIN = "https://agent-og.vercel.app";
+
 export function getBaseUrl(): string {
   const fromEnv =
     process.env.APP_BASE_URL?.trim() ||
@@ -6,6 +9,9 @@ export function getBaseUrl(): string {
   if (fromEnv) {
     if (fromEnv.startsWith("http")) return fromEnv.replace(/\/$/, "");
     return `https://${fromEnv.replace(/\/$/, "")}`;
+  }
+  if (process.env.NODE_ENV === "production") {
+    return CANONICAL_PUBLIC_ORIGIN;
   }
   return "http://localhost:3000";
 }

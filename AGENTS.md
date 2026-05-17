@@ -338,7 +338,7 @@ AgentOG creates:
   "action_hash": "sha256_abc123",
   "risk_level": "medium",
   "approval_required": true,
-  "approval_url": "https://agentog.app/approve/intent_123"
+  "approval_url": "https://agent-og.vercel.app/approve/intent_123"
 }
 ```
 

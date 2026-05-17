@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { CANONICAL_PUBLIC_ORIGIN } from "@/lib/env";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -16,6 +17,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(CANONICAL_PUBLIC_ORIGIN),
   title: "AgentOG — Action-bound approval",
   description:
     "Human approval framework for high-impact AI agent actions — execution gate, fingerprinting, audit.",
