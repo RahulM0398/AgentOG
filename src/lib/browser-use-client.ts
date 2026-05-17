@@ -3,7 +3,7 @@ const DEMO_BROWSER_RESULT = {
   amount: 42,
   scheduled_time: "5:20 PM",
   wheelchair_assistance: true,
-  reason: "Cheapest option under $50 after 5 PM with wheelchair assistance.",
+  reason: "Lowest valid option under $50 with wheelchair assistance after 5 PM.",
 };
 
 export async function runBrowserUseRideResearch(baseUrl: string): Promise<

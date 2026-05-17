@@ -55,8 +55,15 @@ export type ExecutionAttempt = {
   created_at: string;
 };
 
+/** Set after each voice pipeline run — whether AgentMail / AgentPhone were invoked. */
+export type ApprovalDeliverySnapshot = {
+  agentmail: "sent" | "skipped_no_guardian_email" | "send_failed";
+  agentphone: "outbound_initiated" | "skipped_no_guardian_phone" | "failed";
+};
+
 export type DashboardSnapshot = {
   updated_at: string;
+  approval_delivery?: ApprovalDeliverySnapshot;
   voice?: {
     transcript?: string;
     caller?: string;

@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
+import { DEFAULT_RIDE_TRANSCRIPT } from "@/lib/demo-default-transcript";
 import { demoEndpointsAllowed } from "@/lib/env";
 import { processVoiceTranscript } from "@/lib/voice-pipeline";
 
 export const runtime = "nodejs";
-
-const DEMO =
-  "Book a cab from 560 20th Street to Ghirardelli Square after 5 PM. Keep it under $50 and make sure wheelchair assistance is available.";
 
 export async function POST(request: Request) {
   if (!demoEndpointsAllowed()) {
@@ -16,7 +14,7 @@ export async function POST(request: Request) {
   const transcript =
     typeof body.transcript === "string" && body.transcript.trim()
       ? body.transcript.trim()
-      : DEMO;
+      : DEFAULT_RIDE_TRANSCRIPT;
 
   const result = await processVoiceTranscript({
     transcript,

@@ -81,7 +81,7 @@ export default function ApproveIntentPage() {
   return (
     <main className="dash-wrap dash-narrow">
       <header className="dash-hero" style={{ marginBottom: "1.25rem" }}>
-        <h1>Approve exact action</h1>
+        <h1>Approve Exact Action</h1>
         <p className="dash-tagline">You are binding trust to one fingerprint — not to “the agent” in general.</p>
         <p className="dash-hero-lead" style={{ marginTop: "0.75rem" }}>
           MFA proves <strong style={{ color: "var(--text)" }}>who</strong> you are. AgentOG proves{" "}
@@ -158,7 +158,7 @@ export default function ApproveIntentPage() {
 
       <div className="dash-control-row">
         <button type="button" className="dash-btn dash-btn-primary" onClick={() => void approve()} disabled={loading}>
-          Approve exact action
+          Approve Exact Action
         </button>
         <button type="button" className="dash-btn dash-btn-outline" onClick={() => void reject()} disabled={loading}>
           Reject

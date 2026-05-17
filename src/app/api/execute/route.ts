@@ -3,7 +3,10 @@ import { ExecutionRequestSchema } from "@/lib/schemas";
 import { getStore } from "@/lib/agentog-store";
 import { actionFingerprint } from "@/lib/canonical";
 import { verifyApprovalToken } from "@/lib/approval-token";
-import { describePayloadDiff } from "@/lib/execution-diff";
+import {
+  describePayloadDiff,
+  humanBlockedExecutionReason,
+} from "@/lib/execution-diff";
 import { sendAuditReceiptEmail } from "@/lib/agentmail";
 
 export const runtime = "nodejs";
@@ -60,7 +63,7 @@ export async function POST(request: Request) {
     result: allowed ? ("allowed" as const) : ("blocked" as const),
     block_reason: allowed
       ? undefined
-      : describePayloadDiff(intent.raw_input, final_payload).join("; "),
+      : humanBlockedExecutionReason(intent.raw_input, final_payload),
     created_at: new Date().toISOString(),
   };
 
@@ -94,6 +97,9 @@ export async function POST(request: Request) {
       allowed
         ? "Final payload matched approved action fingerprint."
         : `Blocked reason: ${attempt.block_reason}`,
+      ...(allowed
+        ? []
+        : [`Technical detail: ${describePayloadDiff(intent.raw_input, final_payload).join("; ")}`]),
     ];
     try {
       await sendAuditReceiptEmail({ to: guardianEmail, lines });

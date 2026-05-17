@@ -7,14 +7,23 @@ export default async function CheckoutCancelPage({
 }) {
   const sp = await searchParams;
   return (
-    <main style={{ maxWidth: 640, margin: "4rem auto", padding: "0 1.25rem" }}>
-      <h1>Checkout canceled</h1>
-      <p style={{ color: "var(--muted)" }}>
-        No charge. Intent {sp.intent_id ? <code>{sp.intent_id}</code> : null}
-      </p>
-      <p>
-        <Link href="/dashboard">Back to dashboard</Link>
-      </p>
+    <main className="dash-wrap dash-narrow">
+      <header className="dash-hero" style={{ marginBottom: "1.5rem" }}>
+        <h1 className="page-hero-title" style={{ marginBottom: "0.35rem" }}>
+          Checkout canceled
+        </h1>
+        <p className="page-hero-text">
+          No charge.{" "}
+          {sp.intent_id ? (
+            <>
+              Intent <code style={{ color: "var(--orange)", fontWeight: 700 }}>{sp.intent_id}</code>.
+            </>
+          ) : null}
+        </p>
+      </header>
+      <Link href="/dashboard" className="dash-link-btn">
+        ← Back to console
+      </Link>
     </main>
   );
 }

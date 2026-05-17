@@ -1,8 +1,6 @@
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import { DEFAULT_RIDE_TRANSCRIPT } from "./demo-default-transcript";
 import { getGeminiApiKey, mockIntegrations } from "./env";
-
-const DEMO_TRANSCRIPT =
-  "Book a cab from 560 20th Street to Ghirardelli Square after 5 PM. Keep it under $50 and make sure wheelchair assistance is available.";
 
 function plannerModelName() {
   return (
@@ -79,7 +77,7 @@ export async function parseVoiceRequestToTask(transcript: string) {
   });
 
   const prompt = `You convert an end-user voice request into structured JSON for an approval system.
-Transcript:\n"""${transcript || DEMO_TRANSCRIPT}"""\n
+Transcript:\n"""${transcript || DEFAULT_RIDE_TRANSCRIPT}"""\n
 Assume San Francisco if cities omitted. Use snake_case condition tokens like wheelchair_assistance.`;
 
   const res = await model.generateContent(prompt);
@@ -94,7 +92,7 @@ export async function classifyHighImpactAction(task: Record<string, unknown>) {
       approval_required: true,
       risk_level: "medium",
       reason:
-        "The action involves transportation booking, money movement, location data, and accessibility-related information.",
+        "The agent is booking transportation, spending money, sharing location data, and using accessibility-related information.",
       sensitive_fields: ["pickup_location", "dropoff_location", "accessibility_need"],
       demo: true,
     };

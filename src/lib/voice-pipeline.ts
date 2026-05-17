@@ -136,6 +136,13 @@ export async function processVoiceTranscript(params: {
     },
   });
 
+  let agentmailStatus: "sent" | "skipped_no_guardian_email" | "send_failed" =
+    "skipped_no_guardian_email";
+  let agentphoneStatus:
+    | "outbound_initiated"
+    | "skipped_no_guardian_phone"
+    | "failed" = "skipped_no_guardian_phone";
+
   const guardianEmail =
     process.env.GUARDIAN_EMAIL?.trim() ||
     process.env.AGENT_OG_APPROVER_EMAIL?.trim();
@@ -158,8 +165,16 @@ export async function processVoiceTranscript(params: {
       verificationCode: intent.verification_code,
       intentSummary: summary,
     });
-    await sendAgentMailEmail({ to: guardianEmail, subject, text, html });
-    store.appendReceiptLine(`Approval email queued/sent to ${guardianEmail}`);
+    try {
+      await sendAgentMailEmail({ to: guardianEmail, subject, text, html });
+      agentmailStatus = "sent";
+      store.appendReceiptLine(`AgentMail: approval card sent to ${guardianEmail}`);
+    } catch (e) {
+      agentmailStatus = "send_failed";
+      store.appendReceiptLine(
+        `AgentMail send failed: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
   }
 
   const guardianPhone =
@@ -167,14 +182,10 @@ export async function processVoiceTranscript(params: {
     process.env.AGENT_OG_APPROVER_PHONE?.trim();
   if (guardianPhone) {
     const greeting = [
-      "AgentOG approval request. Your AI agent wants to complete a high-impact action.",
-      `Action: Book a wheelchair-assisted ride.`,
-      `Vendor: ${intent.raw_input.vendor}.`,
-      `Amount: ${intent.raw_input.amount} dollars.`,
-      `Pickup: ${intent.raw_input.pickup}.`,
-      `Dropoff: ${intent.raw_input.dropoff}.`,
-      `Time: ${intent.raw_input.scheduled_time}.`,
-      `Data shared: ${intent.raw_input.data_shared.join(", ")}.`,
+      "AgentOG approval request.",
+      `Your AI agent wants to book a wheelchair-assisted ride from ${intent.raw_input.pickup} to ${intent.raw_input.dropoff} at ${intent.raw_input.scheduled_time} for ${intent.raw_input.amount} dollars with ${intent.raw_input.vendor}.`,
+      "This is under the fifty dollar limit.",
+      `It will share ${intent.raw_input.data_shared.join(", ").replace(/_/g, " ")}.`,
       `Say approve ${intent.verification_code}, reject, or revise.`,
     ].join(" ");
 
@@ -183,13 +194,22 @@ export async function processVoiceTranscript(params: {
         toNumber: guardianPhone,
         initialGreeting: greeting,
       });
-      store.appendReceiptLine(`Guardian outbound call initiated to ${guardianPhone}`);
+      agentphoneStatus = "outbound_initiated";
+      store.appendReceiptLine(`AgentPhone: guardian outbound call initiated (${guardianPhone})`);
     } catch (e) {
+      agentphoneStatus = "failed";
       store.appendReceiptLine(
-        `Guardian call failed: ${e instanceof Error ? e.message : String(e)}`,
+        `AgentPhone guardian call failed: ${e instanceof Error ? e.message : String(e)}`,
       );
     }
   }
+
+  store.touchDashboard({
+    approval_delivery: {
+      agentmail: agentmailStatus,
+      agentphone: guardianPhone ? agentphoneStatus : "skipped_no_guardian_phone",
+    },
+  });
 
   return {
     intent_id: intent.id,
