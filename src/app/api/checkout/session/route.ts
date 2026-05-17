@@ -1,0 +1,52 @@
+import { NextResponse } from "next/server";
+import { verifyApprovalToken } from "@/lib/approval-token";
+import { getStore } from "@/lib/agentog-store";
+import { createRideCheckoutSession } from "@/lib/stripe-checkout";
+
+export const runtime = "nodejs";
+
+export async function POST(request: Request) {
+  const body = await request.json().catch(() => null);
+  const intentId = body?.intent_id ?? body?.intentId;
+  const token = body?.approval_token ?? body?.approvalToken;
+
+  if (!intentId || !token) {
+    return NextResponse.json({ error: "missing_fields" }, { status: 400 });
+  }
+
+  const claims = verifyApprovalToken(String(token));
+  if (!claims || claims.intent_id !== intentId) {
+    return NextResponse.json({ error: "invalid_token" }, { status: 403 });
+  }
+
+  const store = getStore();
+  const intent = store.getIntent(intentId);
+  if (!intent || intent.approval_status !== "approved") {
+    return NextResponse.json({ error: "not_approved" }, { status: 403 });
+  }
+
+  const executed = store.executions.some(
+    (e) => e.intent_id === intentId && e.result === "allowed",
+  );
+  if (!executed) {
+    return NextResponse.json(
+      {
+        error: "execute_gate_required",
+        message: "POST /api/execute must return allowed before checkout.",
+      },
+      { status: 403 },
+    );
+  }
+
+  const session = await createRideCheckoutSession({
+    intentId,
+    vendor: intent.raw_input.vendor,
+    amountUsd: intent.raw_input.amount,
+  });
+
+  if (!session.url) {
+    return NextResponse.json({ error: "checkout_unavailable" }, { status: 500 });
+  }
+
+  return NextResponse.json(session);
+}

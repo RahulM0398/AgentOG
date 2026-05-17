@@ -1,0 +1,32 @@
+{
+  "name": "agentog",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "seed:moss": "npx tsx scripts/seed-moss.ts"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@moss-dev/moss": "^1.0.2",
+    "browser-use-sdk": "^2.0.4",
+    "next": "^15.3.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "stripe": "^18.1.1",
+    "supermemory": "^3.4.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.18",
+    "@types/react": "^19.1.4",
+    "@types/react-dom": "^19.1.5",
+    "eslint": "^9.26.0",
+    "eslint-config-next": "^15.3.2",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}
