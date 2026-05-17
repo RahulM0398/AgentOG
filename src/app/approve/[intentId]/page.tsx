@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -52,7 +53,7 @@ export default function ApproveIntentPage() {
       /* ignore */
     }
     setMsg(
-      "Approved. Token saved in this browser for the execution demo. Use the dashboard to run Execute Valid.",
+      "Approved. Token saved in this browser. Return to the dashboard and run the execution gate tests.",
     );
   }
 
@@ -69,8 +70,8 @@ export default function ApproveIntentPage() {
 
   if (!intent) {
     return (
-      <main style={{ padding: "2rem 1.25rem", maxWidth: 720, margin: "0 auto" }}>
-        <p>Loading intent…</p>
+      <main className="dash-wrap dash-narrow">
+        <p style={{ color: "var(--muted)" }}>Loading intent…</p>
       </main>
     );
   }
@@ -78,113 +79,102 @@ export default function ApproveIntentPage() {
   const r = intent.raw_input;
 
   return (
-    <main style={{ padding: "2rem 1.25rem", maxWidth: 720, margin: "0 auto" }}>
-      <h1 style={{ marginTop: 0 }}>AgentOG approval</h1>
-      <p style={{ color: "var(--muted)" }}>
-        Approve the <strong>exact</strong> payload below. Normal MFA verifies the
-        user — AgentOG verifies the exact agent action.
-      </p>
-      <section
-        style={{
-          border: "1px solid var(--border)",
-          borderRadius: 12,
-          padding: "1.25rem",
-          background: "var(--panel)",
-          marginBottom: "1.25rem",
-        }}
-      >
-        <p>
-          <strong>Vendor:</strong> {String(r.vendor)}
+    <main className="dash-wrap dash-narrow">
+      <header className="dash-hero" style={{ marginBottom: "1.25rem" }}>
+        <h1>Approve exact action</h1>
+        <p className="dash-tagline">You are binding trust to one fingerprint — not to “the agent” in general.</p>
+        <p className="dash-hero-lead" style={{ marginTop: "0.75rem" }}>
+          MFA proves <strong style={{ color: "var(--text)" }}>who</strong> you are. AgentOG proves{" "}
+          <strong style={{ color: "var(--text)" }}>what</strong> was approved: vendor, price, route, conditions, and which fields may be shared.
         </p>
-        <p>
-          <strong>Amount:</strong> ${String(r.amount)} {String(r.currency)}
-        </p>
-        <p>
-          <strong>Pickup:</strong> {String(r.pickup ?? "")}
-        </p>
-        <p>
-          <strong>Dropoff:</strong> {String(r.dropoff ?? "")}
-        </p>
-        <p>
-          <strong>Time:</strong> {String(r.scheduled_time ?? "")}
-        </p>
-        <p>
-          <strong>Required conditions:</strong>{" "}
-          {JSON.stringify(r.required_conditions)}
-        </p>
-        <p>
-          <strong>Risk:</strong> {intent.risk_level}
-        </p>
-        <p>
-          <strong>Approval status:</strong> {intent.approval_status}
-        </p>
-        <p>
-          <strong>Action hash:</strong>{" "}
-          <code style={{ wordBreak: "break-all" }}>{intent.action_hash}</code>
-        </p>
-        <p>
-          <strong>Data shared:</strong> {JSON.stringify(r.data_shared)}
-        </p>
-        <p>
-          <strong>Data blocked:</strong> {JSON.stringify(r.data_blocked)}
-        </p>
+      </header>
+
+      <section className="dash-card" style={{ marginBottom: "1.25rem" }}>
+        <div className="dash-card-head">
+          <div>
+            <div className="dash-card-step">Payload</div>
+            <h2>What you are approving</h2>
+          </div>
+          <span className="dash-pill dash-pill-warn">risk {intent.risk_level}</span>
+        </div>
+        <dl className="dash-dl">
+          <div>
+            <dt>Vendor</dt>
+            <dd>
+              <strong>{String(r.vendor)}</strong>
+            </dd>
+          </div>
+          <div>
+            <dt>Amount</dt>
+            <dd>
+              ${String(r.amount)} {String(r.currency)}
+            </dd>
+          </div>
+          <div>
+            <dt>Pickup</dt>
+            <dd>{String(r.pickup ?? "")}</dd>
+          </div>
+          <div>
+            <dt>Dropoff</dt>
+            <dd>{String(r.dropoff ?? "")}</dd>
+          </div>
+          <div>
+            <dt>Time</dt>
+            <dd>{String(r.scheduled_time ?? "")}</dd>
+          </div>
+          <div>
+            <dt>Conditions</dt>
+            <dd>{JSON.stringify(r.required_conditions)}</dd>
+          </div>
+          <div>
+            <dt>Status</dt>
+            <dd>{intent.approval_status}</dd>
+          </div>
+          <div>
+            <dt>Action hash</dt>
+            <dd className="dash-hash">{intent.action_hash}</dd>
+          </div>
+          <div>
+            <dt>Data shared</dt>
+            <dd>{JSON.stringify(r.data_shared)}</dd>
+          </div>
+          <div>
+            <dt>Data blocked</dt>
+            <dd>{JSON.stringify(r.data_blocked)}</dd>
+          </div>
+        </dl>
       </section>
 
-      <label style={{ display: "block", marginBottom: 8 }}>
-        Verification code (from email / voice)
+      <label style={{ display: "block", fontSize: "0.88rem", fontWeight: 600, marginBottom: "1rem" }}>
+        Verification code (from AgentMail or voice)
         <input
+          className="dash-input"
           value={code}
           onChange={(e) => setCode(e.target.value)}
-          placeholder="4829"
-          style={{
-            display: "block",
-            marginTop: 6,
-            width: "100%",
-            maxWidth: 320,
-            padding: "0.6rem 0.75rem",
-            borderRadius: 8,
-            border: "1px solid var(--border)",
-            background: "#0f1620",
-            color: "var(--text)",
-          }}
+          placeholder="e.g. 4829"
+          autoComplete="one-time-code"
         />
       </label>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 16 }}>
-        <button
-          type="button"
-          onClick={() => void approve()}
-          disabled={loading}
-          style={{
-            padding: "0.65rem 1rem",
-            borderRadius: 8,
-            border: "none",
-            fontWeight: 600,
-            background: "var(--accent)",
-            color: "#042f2e",
-          }}
-        >
-          Approve Exact Action
+      <div className="dash-control-row">
+        <button type="button" className="dash-btn dash-btn-primary" onClick={() => void approve()} disabled={loading}>
+          Approve exact action
         </button>
-        <button
-          type="button"
-          onClick={() => void reject()}
-          disabled={loading}
-          style={{
-            padding: "0.65rem 1rem",
-            borderRadius: 8,
-            border: "1px solid var(--border)",
-            background: "transparent",
-            color: "var(--text)",
-          }}
-        >
+        <button type="button" className="dash-btn dash-btn-outline" onClick={() => void reject()} disabled={loading}>
           Reject
         </button>
       </div>
 
       {msg ? (
-        <p style={{ marginTop: "1rem", color: "var(--accent)" }}>{msg}</p>
+        <div className="dash-alert" style={{ marginTop: "1.25rem" }}>
+          <strong>Result</strong>
+          <p style={{ margin: "0.35rem 0 0", color: "var(--muted)" }}>{msg}</p>
+        </div>
       ) : null}
+
+      <footer className="dash-footer-links">
+        <Link href="/dashboard">← Back to demo console</Link>
+      </footer>
     </main>
   );
 }

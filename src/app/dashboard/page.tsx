@@ -1,12 +1,37 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import type { DashboardSnapshot } from "@/lib/types";
+
+function str(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  return String(v);
+}
+
+function TechJson({ label, value }: { label: string; value: unknown }) {
+  if (value === undefined || value === null) return null;
+  return (
+    <details className="dash-tech">
+      <summary>{label}</summary>
+      <pre>{JSON.stringify(value, null, 2)}</pre>
+    </details>
+  );
+}
 
 export default function DashboardPage() {
   const [snap, setSnap] = useState<DashboardSnapshot | null>(null);
-  const [execResult, setExecResult] = useState<string | null>(null);
+  const [execResult, setExecResult] = useState<{
+    title: string;
+    body: string;
+    variant: "ok" | "bad" | "neutral";
+  } | null>(null);
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -21,6 +46,8 @@ export default function DashboardPage() {
     return () => clearInterval(id);
   }, [refresh]);
 
+  const steps = useMemo(() => computeSteps(snap), [snap]);
+
   async function simulateVoice() {
     setBusy(true);
     setExecResult(null);
@@ -32,7 +59,11 @@ export default function DashboardPage() {
   async function runExecute(kind: "valid" | "tampered") {
     const intentId = snap?.intent?.id;
     if (!intentId || !snap?.intent?.raw_input) {
-      setExecResult("Create an intent first (call AgentPhone or run Simulate Voice).");
+      setExecResult({
+        title: "Nothing to execute yet",
+        body: "Run the demo (voice pipeline) or call AgentPhone first so AgentOG creates an action intent and fingerprint.",
+        variant: "neutral",
+      });
       return;
     }
     let token: string | null = null;
@@ -42,7 +73,11 @@ export default function DashboardPage() {
       token = null;
     }
     if (!token) {
-      setExecResult("Approve the intent in /approve and enter the verification code.");
+      setExecResult({
+        title: "Approval token missing",
+        body: "Open the human approval page, enter the verification code from email/voice, and approve. The token is stored in this browser for the demo.",
+        variant: "neutral",
+      });
       return;
     }
 
@@ -68,9 +103,26 @@ export default function DashboardPage() {
         final_payload,
       }),
     });
-    const data = await res.json();
+    const data = (await res.json()) as { status?: string; reason?: string };
     setBusy(false);
-    setExecResult(`${data.status}: ${data.reason ?? JSON.stringify(data)}`);
+
+    if (data.status === "allowed") {
+      setExecResult({
+        title: "Execution gate: ALLOWED",
+        body:
+          data.reason ??
+          "Final payload matched the approved fingerprint. Checkout or booking runs only after this.",
+        variant: "ok",
+      });
+    } else {
+      setExecResult({
+        title: "Execution gate: BLOCKED",
+        body:
+          data.reason ??
+          "The agent tried to change the approved action; payment and booking stay off.",
+        variant: "bad",
+      });
+    }
     void refresh();
   }
 
@@ -84,7 +136,11 @@ export default function DashboardPage() {
       token = null;
     }
     if (!token) {
-      setExecResult("Need approval token in browser storage.");
+      setExecResult({
+        title: "Need approval first",
+        body: "Approve the intent, run an honest execution test successfully, then open Stripe.",
+        variant: "neutral",
+      });
       return;
     }
     setBusy(true);
@@ -93,209 +149,363 @@ export default function DashboardPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ intent_id: intentId, approval_token: token }),
     });
-    const data = await res.json();
+    const data = (await res.json()) as { url?: string };
     setBusy(false);
     if (data.url) {
-      window.location.href = data.url as string;
+      window.location.href = data.url;
     } else {
-      setExecResult(JSON.stringify(data));
+      setExecResult({
+        title: "Checkout could not start",
+        body: JSON.stringify(data, null, 2),
+        variant: "bad",
+      });
     }
   }
 
+  const planner = snap?.planner_task as Record<string, unknown> | undefined;
+  const classifier = snap?.classifier as Record<string, unknown> | undefined;
+  const browser = snap?.browser_use as Record<string, unknown> | undefined;
+
   return (
-    <main style={{ maxWidth: 1100, margin: "0 auto", padding: "1.5rem 1.25rem 3rem" }}>
-      <header style={{ marginBottom: "2rem" }}>
-        <h1 style={{ margin: "0 0 0.35rem" }}>AgentOG dashboard</h1>
-        <p style={{ margin: 0, color: "var(--muted)", maxWidth: 720 }}>
-          Action-bound verification for high-impact agent actions — fingerprint,
-          human approval, short-lived token, execution gate, audit trail. Ride
-          booking is the demo scenario only.
+    <main className="dash-wrap">
+      <header className="dash-hero">
+        <h1>AgentOG</h1>
+        <p className="dash-tagline">
+          Human approval tied to the exact agent action — not generic “you’re logged in.”
         </p>
-        <nav style={{ marginTop: "1rem", display: "flex", gap: 16 }}>
-          <Link href="/rides">Mock /rides</Link>
-          <a href="/api/health" target="_blank" rel="noreferrer">
-            /api/health
-          </a>
-        </nav>
+        <p className="dash-hero-lead">
+          This page is the judge and demo console. The ride story is an example; the product is the pipeline:{" "}
+          <strong style={{ color: "var(--text)" }}>
+            fingerprint → human approval → short-lived token → execution gate → audit
+          </strong>
+          . Payment is deliberately last — Stripe only after the gate allows an unchanged payload.
+        </p>
+        <div className="dash-hero-flow">
+          <strong>Read top to bottom:</strong> what the caller said → structured task → risk decision → rules and
+          memory → browser choice → cryptographic fingerprint → approval state → allowed vs blocked execution → receipts.
+        </div>
       </header>
 
-      <section style={{ marginBottom: "1rem", display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button
-          type="button"
-          onClick={() => void simulateVoice()}
-          disabled={busy}
-          style={btnPrimary}
-        >
-          Simulate voice transcript (demo)
-        </button>
-        {snap?.intent?.approval_url ? (
-          <Link href={snap.intent.approval_url} style={{ ...btnGhost, lineHeight: "2.4rem" }}>
-            Open approval page
-          </Link>
-        ) : null}
-        <button type="button" onClick={() => void runExecute("valid")} disabled={busy} style={btnGhost}>
-          Execute Valid Payload
-        </button>
-        <button type="button" onClick={() => void runExecute("tampered")} disabled={busy} style={btnDanger}>
-          Execute Tampered Payload
-        </button>
-        <button type="button" onClick={() => void checkout()} disabled={busy} style={btnGhost}>
-          Stripe checkout (after allowed execute)
-        </button>
-      </section>
+      <p className="dash-section-title">What each control does</p>
+      <div className="dash-controls">
+        <div className="dash-control-row">
+          <button type="button" className="dash-btn dash-btn-primary" disabled={busy} onClick={() => void simulateVoice()}>
+            Run voice pipeline (demo)
+          </button>
+          <span style={{ alignSelf: "center", fontSize: "0.82rem", color: "var(--muted)", maxWidth: 440 }}>
+            Runs planner, classifier, Moss, Supermemory, Browser Use, then creates an intent (and sends mail/call if env is set).
+          </span>
+        </div>
+        <div className="dash-control-row">
+          {snap?.intent?.approval_url ? (
+            <Link href={snap.intent.approval_url} className="dash-link-btn">
+              Human approval page
+            </Link>
+          ) : (
+            <span className="dash-link-btn" style={{ opacity: 0.45, pointerEvents: "none" }}>
+              Human approval (needs intent)
+            </span>
+          )}
+          <span style={{ alignSelf: "center", fontSize: "0.82rem", color: "var(--muted)", maxWidth: 440 }}>
+            Guardian confirms the exact vendor, price, route, and conditions. Uses the verification code from AgentMail or voice.
+          </span>
+        </div>
+        <div className="dash-control-row">
+          <button type="button" className="dash-btn dash-btn-outline" disabled={busy} onClick={() => void runExecute("valid")}>
+            Gate: honest payload
+          </button>
+          <button type="button" className="dash-btn dash-btn-danger" disabled={busy} onClick={() => void runExecute("tampered")}>
+            Gate: tampered payload
+          </button>
+          <button type="button" className="dash-btn dash-btn-outline" disabled={busy} onClick={() => void checkout()}>
+            Stripe (after allowed gate)
+          </button>
+        </div>
+      </div>
 
       {execResult ? (
-        <pre
+        <div
+          className="dash-alert"
           style={{
-            padding: "1rem",
-            borderRadius: 8,
-            background: "var(--panel)",
-            border: "1px solid var(--border)",
-            whiteSpace: "pre-wrap",
+            borderColor:
+              execResult.variant === "ok"
+                ? "rgba(52, 211, 153, 0.35)"
+                : execResult.variant === "bad"
+                  ? "rgba(248, 113, 113, 0.35)"
+                  : undefined,
           }}
         >
-          {execResult}
-        </pre>
+          <strong>{execResult.title}</strong>
+          <p style={{ margin: "0.5rem 0 0", whiteSpace: "pre-wrap", color: "var(--muted)" }}>{execResult.body}</p>
+        </div>
       ) : null}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-          gap: "1rem",
-        }}
-      >
-        <Panel title="Panel 1 — Live voice">
-          <p style={{ color: "var(--muted)" }}>Caller</p>
-          <code>{snap?.voice?.caller ?? "—"}</code>
-          <p style={{ color: "var(--muted)" }}>Transcript</p>
-          <blockquote style={{ margin: 0, color: "var(--text)" }}>
+      <p className="dash-section-title">Pipeline progress</p>
+      <div className="dash-steps">
+        {steps.map((s) => (
+          <div key={s.key} className={`dash-step ${s.done ? "done" : s.pending ? "pending" : ""}`}>
+            {s.label}
+          </div>
+        ))}
+      </div>
+
+      <div className="dash-grid">
+        <DashCard step="1" title="Voice intake" why="What the human actually asked — the source text for everything downstream.">
+          <dl className="dash-dl">
+            <div>
+              <dt>Caller</dt>
+              <dd>{snap?.voice?.caller ? <code>{snap.voice.caller}</code> : "—"}</dd>
+            </div>
+          </dl>
+          <blockquote className="dash-blockquote" style={{ marginTop: "0.75rem" }}>
             {snap?.voice?.transcript ??
-              "Waiting for AgentPhone webhook or demo simulate…"}
+              "Waiting for AgentPhone or run **Run voice pipeline** to populate this."}
           </blockquote>
-        </Panel>
+          <TechJson label="Raw voice metadata (debug)" value={snap?.voice} />
+        </DashCard>
 
-        <Panel title="Panel 2 — Planner (Gemini/Gemma)">
-          <JsonBlock value={snap?.planner_task} />
-        </Panel>
+        <DashCard step="2" title="Structured task" why="Planner output: what the agent understood (locations, budget, constraints).">
+          {planner ? (
+            <dl className="dash-dl">
+              <div>
+                <dt>Action</dt>
+                <dd>{str(planner.action_type ?? planner.task_type)}</dd>
+              </div>
+              <div>
+                <dt>Route</dt>
+                <dd>
+                  {str(planner.pickup)} → {str(planner.dropoff)}
+                </dd>
+              </div>
+              <div>
+                <dt>Budget</dt>
+                <dd>${str(planner.max_amount ?? planner.budget)}</dd>
+              </div>
+              <div>
+                <dt>Constraints</dt>
+                <dd>
+                  {Array.isArray(planner.required_conditions)
+                    ? (planner.required_conditions as string[]).join(", ")
+                    : str(planner.time_constraint)}
+                </dd>
+              </div>
+            </dl>
+          ) : (
+            <p style={{ color: "var(--muted)", margin: 0 }}>No planner output yet.</p>
+          )}
+          <TechJson label="Full planner JSON (debug)" value={planner} />
+        </DashCard>
 
-        <Panel title="Panel 3 — High-impact classifier">
-          <JsonBlock value={snap?.classifier} />
-        </Panel>
+        <DashCard step="3" title="Risk decision" why="Only high-impact actions trigger AgentOG approval — not every chat turn.">
+          {classifier ? (
+            <>
+              <div style={{ marginBottom: "0.65rem" }}>
+                {boolPill(classifier.high_impact_action, "High-impact", "Not high-impact")}
+                {"  "}
+                {boolPill(classifier.approval_required, "Approval required", "No approval")}
+                {"  "}
+                <span className="dash-pill dash-pill-warn">risk {str(classifier.risk_level || "?")}</span>
+              </div>
+              <p style={{ margin: 0, fontSize: "0.88rem", color: "var(--text)" }}>{str(classifier.reason)}</p>
+              {Array.isArray(classifier.sensitive_fields) ? (
+                <p style={{ margin: "0.5rem 0 0", fontSize: "0.82rem", color: "var(--muted)" }}>
+                  Fields flagged: {(classifier.sensitive_fields as string[]).join(", ")}
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <p style={{ color: "var(--muted)", margin: 0 }}>No classifier output yet.</p>
+          )}
+          <TechJson label="Full classifier JSON (debug)" value={classifier} />
+        </DashCard>
 
-        <Panel title="Panel 4 — Moss + Supermemory">
-          <p style={{ color: "var(--muted)" }}>Moss</p>
-          <ul>
-            {(snap?.moss_lines ?? []).map((l) => (
-              <li key={l}>{l}</li>
-            ))}
+        <DashCard
+          step="4"
+          title="Rules and memory"
+          why="Moss surfaces policy snippets for this request; Supermemory holds longer-lived preferences. Together they bound the agent."
+        >
+          <p style={{ margin: "0 0 0.35rem", fontSize: "0.78rem", fontWeight: 700, color: "var(--muted2)" }}>Moss</p>
+          <ul className="dash-list">
+            {(snap?.moss_lines ?? []).length ? (
+              snap!.moss_lines!.map((l) => <li key={l}>{l}</li>)
+            ) : (
+              <li style={{ color: "var(--muted)" }}>Shows here after the pipeline runs.</li>
+            )}
           </ul>
-          <p style={{ color: "var(--muted)" }}>Supermemory</p>
-          <pre style={{ whiteSpace: "pre-wrap", margin: 0 }}>
+          <p style={{ margin: "0.85rem 0 0.35rem", fontSize: "0.78rem", fontWeight: 700, color: "var(--muted2)" }}>
+            Supermemory
+          </p>
+          <pre style={{ whiteSpace: "pre-wrap", margin: 0, fontSize: "0.82rem", color: "var(--text)" }}>
             {snap?.supermemory_text ?? "—"}
           </pre>
-        </Panel>
+        </DashCard>
 
-        <Panel title="Panel 5 — Browser Use selection">
-          <JsonBlock value={snap?.browser_use} />
-        </Panel>
+        <DashCard step="5" title="Browser research" why="Reads the controlled /rides page and selects a vendor that satisfies budget, time, and wheelchair rules.">
+          {browser ? (
+            <dl className="dash-dl">
+              <div>
+                <dt>Pick</dt>
+                <dd>
+                  <strong>{str(browser.selected_vendor)}</strong> at ${Number(browser.amount)}
+                </dd>
+              </div>
+              <div>
+                <dt>Time</dt>
+                <dd>{str(browser.scheduled_time ?? browser.available_time)}</dd>
+              </div>
+              <div>
+                <dt>Wheelchair</dt>
+                <dd>{browser.wheelchair_assistance === true ? "Yes" : browser.wheelchair_assistance === false ? "No" : "—"}</dd>
+              </div>
+              <div>
+                <dt>Rationale</dt>
+                <dd>{str(browser.reason)}</dd>
+              </div>
+            </dl>
+          ) : (
+            <p style={{ color: "var(--muted)", margin: 0 }}>No browser result yet.</p>
+          )}
+          <TechJson label="Full browser JSON (debug)" value={browser} />
+        </DashCard>
 
-        <Panel title="Panel 6 — Action fingerprint">
-          <p>
-            Intent: <code>{snap?.intent?.id ?? "—"}</code>
-          </p>
-          <p>
-            Hash:{" "}
-            <code style={{ wordBreak: "break-all" }}>
-              {snap?.intent?.action_hash ?? "—"}
-            </code>
-          </p>
-          <p>Status: {snap?.intent?.approval_status ?? "—"}</p>
-        </Panel>
+        <DashCard
+          step="6"
+          title="Fingerprint and intent"
+          why="The approval UI and token bind to this hash. Change vendor, price, or fields → hash changes → gate blocks."
+          badge={
+            snap?.intent?.approval_status === "approved" ? (
+              <span className="dash-pill dash-pill-ok">Approved</span>
+            ) : snap?.intent?.approval_status === "pending" ? (
+              <span className="dash-pill dash-pill-warn">Pending</span>
+            ) : snap?.intent?.approval_status ? (
+              <span className="dash-pill dash-pill-bad">{snap.intent.approval_status}</span>
+            ) : null
+          }
+        >
+          <dl className="dash-dl">
+            <div>
+              <dt>Intent</dt>
+              <dd>
+                <code>{snap?.intent?.id ?? "—"}</code>
+              </dd>
+            </div>
+            <div>
+              <dt>Summary</dt>
+              <dd>
+                {snap?.intent?.vendor ?? "—"} · ${snap?.intent?.amount ?? "—"}
+              </dd>
+            </div>
+            <div>
+              <dt>SHA-256</dt>
+              <dd className="dash-hash">{snap?.intent?.action_hash ?? "—"}</dd>
+            </div>
+          </dl>
+        </DashCard>
 
-        <Panel title="Panel 7 — Execution gate">
-          <p>
-            Valid:{" "}
-            {snap?.execution?.last_valid?.result ?? "—"}{" "}
-            {snap?.execution?.last_valid?.created_at ?? ""}
-          </p>
-          <p style={{ color: "var(--danger)" }}>
-            Tampered:{" "}
-            {snap?.execution?.last_tampered?.result ?? "—"}{" "}
-            {snap?.execution?.last_tampered?.block_reason ?? ""}
-          </p>
-        </Panel>
+        <DashCard step="7" title="Execution gate" why="Final agent payload must match the approved fingerprint or execution stays blocked.">
+          <dl className="dash-dl">
+            <div>
+              <dt>Honest test</dt>
+              <dd>
+                {snap?.execution?.last_valid ? (
+                  <span className="dash-pill dash-pill-ok">{snap.execution.last_valid.result}</span>
+                ) : (
+                  <span style={{ color: "var(--muted)" }}>Not run</span>
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt>Tampered test</dt>
+              <dd>
+                {snap?.execution?.last_tampered ? (
+                  <>
+                    <span className="dash-pill dash-pill-bad">{snap.execution.last_tampered.result}</span>
+                    <span style={{ display: "block", marginTop: 6, fontSize: "0.82rem", color: "var(--muted)" }}>
+                      {snap.execution.last_tampered.block_reason}
+                    </span>
+                  </>
+                ) : (
+                  <span style={{ color: "var(--muted)" }}>Not run</span>
+                )}
+              </dd>
+            </div>
+          </dl>
+        </DashCard>
 
-        <Panel title="Panel 8 — Audit / receipts">
-          <ul style={{ paddingLeft: "1.1rem" }}>
-            {(snap?.receipts ?? []).slice(-8).map((r) => (
-              <li key={r}>{r}</li>
-            ))}
+        <DashCard step="8" title="Audit and receipts" why="Proof for judges: emails sent, calls attempted, gate outcomes.">
+          <ul className="dash-list" style={{ listStyle: "none", paddingLeft: 0 }}>
+            {(snap?.receipts ?? []).length ? (
+              snap!.receipts!.slice(-10).map((r) => (
+                <li key={r} style={{ borderBottom: "1px solid var(--border)", padding: "0.35rem 0" }}>
+                  {r}
+                </li>
+              ))
+            ) : (
+              <li style={{ color: "var(--muted)" }}>Lines appear as the system sends mail or logs milestones.</li>
+            )}
           </ul>
-        </Panel>
+        </DashCard>
       </div>
+
+      <footer className="dash-footer-links">
+        <Link href="/rides">Mock marketplace (/rides)</Link>
+        {" · "}
+        <a href="/api/health" target="_blank" rel="noreferrer">
+          API health
+        </a>
+      </footer>
     </main>
   );
 }
 
-function Panel({
+function DashCard({
+  step,
   title,
+  why,
+  badge,
   children,
 }: {
+  step: string;
   title: string;
-  children: React.ReactNode;
+  why: string;
+  badge?: ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <section
-      style={{
-        border: "1px solid var(--border)",
-        borderRadius: 12,
-        padding: "1rem 1.1rem",
-        background: "var(--panel)",
-      }}
-    >
-      <h2 style={{ marginTop: 0, fontSize: "1rem" }}>{title}</h2>
+    <section className="dash-card">
+      <div className="dash-card-head">
+        <div>
+          <div className="dash-card-step">Step {step}</div>
+          <h2>{title}</h2>
+        </div>
+        {badge}
+      </div>
+      <p className="dash-card-why">{why}</p>
       {children}
     </section>
   );
 }
 
-function JsonBlock({ value }: { value: unknown }) {
-  if (!value) return <span style={{ color: "var(--muted)" }}>—</span>;
-  return (
-    <pre
-      style={{
-        margin: 0,
-        fontSize: "0.8rem",
-        overflow: "auto",
-        maxHeight: 280,
-        whiteSpace: "pre-wrap",
-      }}
-    >
-      {JSON.stringify(value, null, 2)}
-    </pre>
-  );
+function boolPill(val: unknown, yes: string, no: string) {
+  if (val === true) return <span className="dash-pill dash-pill-ok">{yes}</span>;
+  if (val === false) return <span className="dash-pill dash-pill-warn">{no}</span>;
+  return <span className="dash-pill dash-pill-warn">unknown</span>;
 }
 
-const btnPrimary: React.CSSProperties = {
-  padding: "0.55rem 1rem",
-  borderRadius: 8,
-  border: "none",
-  fontWeight: 600,
-  background: "var(--accent)",
-  color: "#042f2e",
-};
-
-const btnGhost: React.CSSProperties = {
-  padding: "0.55rem 1rem",
-  borderRadius: 8,
-  border: "1px solid var(--border)",
-  background: "transparent",
-  color: "var(--text)",
-};
-
-const btnDanger: React.CSSProperties = {
-  ...btnGhost,
-  borderColor: "var(--danger)",
-  color: "var(--danger)",
-};
+function computeSteps(s: DashboardSnapshot | null) {
+  const pending = (done: boolean) => ({ done, pending: !done });
+  return [
+    { key: "v", label: "1 Voice", ...pending(!!s?.voice?.transcript) },
+    { key: "p", label: "2 Planner", ...pending(!!s?.planner_task) },
+    { key: "c", label: "3 Risk", ...pending(!!s?.classifier) },
+    { key: "m", label: "4 Rules", ...pending(!!(s?.moss_lines?.length || s?.supermemory_text)) },
+    { key: "b", label: "5 Browser", ...pending(!!s?.browser_use) },
+    { key: "i", label: "6 Intent", ...pending(!!s?.intent?.id) },
+    { key: "a", label: "7 Approved", ...pending(s?.intent?.approval_status === "approved") },
+    {
+      key: "e",
+      label: "8 Gate",
+      ...pending(!!(s?.execution?.last_valid || s?.execution?.last_tampered)),
+    },
+  ];
+}
