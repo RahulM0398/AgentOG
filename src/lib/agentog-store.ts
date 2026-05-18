@@ -31,7 +31,7 @@ const globalForStore = globalThis as unknown as {
   __agentog?: AgentOGMemoryStore;
 };
 
-class AgentOGMemoryStore {
+export class AgentOGMemoryStore {
   intents = new Map<string, ActionIntentRecord>();
   audit: AuditEvent[] = [];
   executions: ExecutionAttempt[] = [];

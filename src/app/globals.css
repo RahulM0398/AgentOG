@@ -1992,6 +1992,27 @@ table.dash-browser-table {
   margin-top: 0.5rem;
 }
 
+.demo-payment-snapshot {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+  background: var(--cream-deep);
+  margin-bottom: 0.6rem;
+}
+
+.demo-payment-snapshot .demo-kv-list li {
+  border-bottom-color: var(--border);
+}
+
+.demo-payment-snapshot .demo-kv-list li:last-child {
+  border-bottom: none;
+}
+
+.demo-payment-status-bad {
+  color: var(--danger);
+  font-weight: 600;
+}
+
 @media (min-width: 768px) {
   .demo-dash-grid {
     grid-template-columns: 1fr 1fr;

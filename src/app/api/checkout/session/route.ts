@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error: "not_approved",
-        message: "Approve this intent first, then run the gate check.",
+        message: "Approve this intent first (OTP on the approval page).",
       },
       { status: 403 },
     );
@@ -50,7 +50,8 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error: "execute_gate_required",
-        message: 'Use “Run gate (match)” on the dashboard so the approved payload passes before paying.',
+        message:
+          "Fingerprint gate did not clear — approve again from the approval page, then retry checkout.",
       },
       { status: 403 },
     );

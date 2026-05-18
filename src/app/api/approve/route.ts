@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStore } from "@/lib/agentog-store";
 import { signApprovalToken } from "@/lib/approval-token";
+import { processExecution } from "@/lib/process-execution";
 import { getApprovalTtlMs, getBaseUrl } from "@/lib/env";
 
 export const runtime = "nodejs";
@@ -66,6 +67,13 @@ export async function POST(request: Request) {
   });
 
   store.attachApprovalToken(intentId, token, new Date(exp * 1000).toISOString());
+
+  const gate = await processExecution(store, intent.id, token, intent.raw_input, {
+    sendAuditEmail: false,
+  });
+  if (gate.ok && gate.allowed) {
+    store.appendReceiptLine("Gate verified — approved payload matches fingerprint.");
+  }
 
   store.touchDashboard({
     intent: {

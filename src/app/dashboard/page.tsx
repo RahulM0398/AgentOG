@@ -14,6 +14,11 @@ export default function DashboardPage() {
     variant: "ok" | "bad" | "neutral";
   } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [paymentSurface, setPaymentSurface] = useState<
+    | { kind: "idle" }
+    | { kind: "busy"; detail: string }
+    | { kind: "error"; detail: string }
+  >({ kind: "idle" });
 
   const refresh = useCallback(async () => {
     const res = await fetch("/api/dashboard-state");
@@ -39,6 +44,7 @@ export default function DashboardPage() {
   async function resetDemo() {
     setBusy(true);
     setExecResult(null);
+    setPaymentSurface({ kind: "idle" });
     try {
       const res = await fetch("/api/demo/reset", { method: "POST" });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -75,6 +81,7 @@ export default function DashboardPage() {
   async function simulateVoice() {
     setBusy(true);
     setExecResult(null);
+    setPaymentSurface({ kind: "idle" });
     const res = await fetch("/api/demo/simulate-transcript", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -95,7 +102,7 @@ export default function DashboardPage() {
     }
   }
 
-  async function runExecute(kind: "valid" | "tampered") {
+  async function runTamperedDemo() {
     const intentId = snap?.intent?.id;
     if (!intentId || !snap?.intent?.raw_input) {
       setExecResult({
@@ -121,18 +128,15 @@ export default function DashboardPage() {
     }
 
     const base = snap.intent.raw_input;
-    const final_payload =
-      kind === "valid"
-        ? base
-        : {
-            ...base,
-            vendor: "Tampered vendor substitution",
-            amount: Math.round((base.amount + 127) * 100) / 100,
-            scheduled_time: "forced immediate slot",
-            research_source_url: "https://example.invalid/agent-not-allowed",
-            required_conditions: [] as string[],
-            data_shared: [...base.data_shared, "medical_condition"],
-          };
+    const final_payload = {
+      ...base,
+      vendor: "Tampered vendor substitution",
+      amount: Math.round((base.amount + 127) * 100) / 100,
+      scheduled_time: "forced immediate slot",
+      research_source_url: "https://example.invalid/agent-not-allowed",
+      required_conditions: [] as string[],
+      data_shared: [...base.data_shared, "medical_condition"],
+    };
 
     setBusy(true);
     const res = await fetch("/api/execute", {
@@ -149,14 +153,14 @@ export default function DashboardPage() {
 
     if (data.status === "allowed") {
       setExecResult({
-        title: "Gate: ALLOWED",
-        body: data.reason ?? "Fingerprint matched — checkout may proceed.",
-        variant: "ok",
+        title: "Tampered run",
+        body: "Expected a block — payload should not match after tampering.",
+        variant: "neutral",
       });
     } else {
       setExecResult({
-        title: "Gate: BLOCKED",
-        body: data.reason ?? "Payload diverged from approval.",
+        title: "Tampered",
+        body: data.reason ?? "Blocked — payload diverged from what was approved.",
         variant: "bad",
       });
     }
@@ -165,22 +169,34 @@ export default function DashboardPage() {
 
   async function checkout() {
     const intentId = snap?.intent?.id;
-    if (!intentId) return;
+    if (!intentId) {
+      setPaymentSurface({
+        kind: "error",
+        detail: "Run a sample request first so there is an intent to pay against.",
+      });
+      return;
+    }
+
     let token: string | null = null;
     try {
       token = localStorage.getItem(`agentog_token_${intentId}`);
     } catch {
       token = null;
     }
+
     if (!token) {
-      setExecResult({
-        title: "Approve first",
-        body: "Approve the intent, run Gate · match, then Pay (Stripe).",
-        variant: "neutral",
+      setPaymentSurface({
+        kind: "error",
+        detail:
+          "Approve on the approval page (OTP) — your browser saves the token needed for checkout.",
       });
       return;
     }
+
+    setExecResult(null);
     setBusy(true);
+    setPaymentSurface({ kind: "busy", detail: "Opening Stripe Checkout…" });
+
     const res = await fetch("/api/checkout/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -188,23 +204,27 @@ export default function DashboardPage() {
     });
     const data = (await res.json()) as { url?: string; message?: string; error?: string };
     setBusy(false);
+
     if (data.url) {
+      setPaymentSurface({
+        kind: "busy",
+        detail: "Redirecting to secure Stripe Checkout…",
+      });
       window.location.href = data.url;
       return;
     }
-    setExecResult({
-      title: "Checkout blocked",
-      body:
-        data.message ??
-        (data.error === "execute_gate_required"
-          ? 'Run “Gate · match” successfully before paying.'
-          : data.error === "invalid_token"
-            ? "Approval token missing or expired — approve again on this browser."
-            : data.error === "not_approved"
-              ? "Approve the intent first."
-              : "Stripe did not return a link — check STRIPE_SECRET_KEY and simulated mode."),
-      variant: "bad",
-    });
+
+    const detail =
+      data.message ??
+      (data.error === "execute_gate_required"
+        ? "Gate not cleared — approve again from the approval page, then retry Pay."
+        : data.error === "invalid_token"
+          ? "Approval token missing or expired — approve again in this browser."
+          : data.error === "not_approved"
+            ? "Approve this intent on the approval page first."
+            : "Stripe did not return a link — check STRIPE_SECRET_KEY and simulated mode.");
+
+    setPaymentSurface({ kind: "error", detail });
   }
 
   const planner = snap?.planner_task as Record<string, unknown> | undefined;
@@ -220,12 +240,15 @@ export default function DashboardPage() {
     };
   }, [planner]);
 
+  const gateReady = !!snap?.execution?.last_valid;
+  const intentApproved = snap?.intent?.approval_status === "approved";
+
   return (
     <main className="demo-shell demo-shell-wide dash-wrap">
       <header className="demo-hero">
         <h1>AgentOG demo</h1>
         <p className="demo-lead">
-          Fingerprint → approval card → short-lived token → execution gate → optional payment.
+          Fingerprint → approval (OTP verifies gate match) → short-lived token → optional Stripe checkout.
         </p>
       </header>
 
@@ -249,11 +272,8 @@ export default function DashboardPage() {
             Approval page
           </span>
         )}
-        <button type="button" className="dash-btn dash-btn-outline demo-action-btn" disabled={busy} onClick={() => void runExecute("valid")}>
-          Gate · match
-        </button>
-        <button type="button" className="dash-btn dash-btn-danger demo-action-btn" disabled={busy} onClick={() => void runExecute("tampered")}>
-          Gate · tampered
+        <button type="button" className="dash-btn dash-btn-danger demo-action-btn" disabled={busy} onClick={() => void runTamperedDemo()}>
+          Tampered
         </button>
         <button type="button" className="dash-btn dash-btn-outline demo-action-btn" disabled={busy} onClick={() => void checkout()}>
           Pay (Stripe)
@@ -421,9 +441,51 @@ export default function DashboardPage() {
           </p>
         </Panel>
 
+        <Panel title="Payment (Stripe)">
+          {snap?.intent?.id ? (
+            <>
+              <div className="demo-payment-snapshot">
+                <ul className="demo-kv-list">
+                  <li>
+                    <span>Vendor</span> <span>{snap.intent.vendor ?? "—"}</span>
+                  </li>
+                  <li>
+                    <span>Amount</span>{" "}
+                    <span>{snap.intent.amount != null ? `$${snap.intent.amount} USD` : "—"}</span>
+                  </li>
+                  <li>
+                    <span>Approval</span> <span>{snap.intent.approval_status}</span>
+                  </li>
+                  <li>
+                    <span>Gate</span>{" "}
+                    <span>
+                      {gateReady
+                        ? "Cleared · matches approved fingerprint"
+                        : intentApproved
+                          ? "Waiting…"
+                          : "Approve first"}
+                    </span>
+                  </li>
+                </ul>
+              </div>
+              {paymentSurface.kind === "error" ? (
+                <p className="demo-mini demo-payment-status-bad">{paymentSurface.detail}</p>
+              ) : paymentSurface.kind === "busy" ? (
+                <p className="demo-mini">{paymentSurface.detail}</p>
+              ) : (
+                <p className="demo-muted demo-mini">
+                  After you approve, use Pay (Stripe) above — this card stays visible while checkout spins up.
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="demo-muted">Run a sample request to preview vendor, amount, and checkout readiness.</p>
+          )}
+        </Panel>
+
         <Panel title="Execution gate">
           <p className="demo-mini">
-            Approved payload:{" "}
+            Matched approval:{" "}
             {snap?.execution?.last_valid ? (
               <span className="dash-pill dash-pill-ok">{snap.execution.last_valid.result}</span>
             ) : (
@@ -431,7 +493,7 @@ export default function DashboardPage() {
             )}
           </p>
           <p className="demo-mini">
-            Tampered payload:{" "}
+            Tampered:{" "}
             {snap?.execution?.last_tampered ? (
               <>
                 <span className="dash-pill dash-pill-bad">{snap.execution.last_tampered.result}</span>

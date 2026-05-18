@@ -1,14 +1,7 @@
 import { NextResponse } from "next/server";
 import { ExecutionRequestSchema } from "@/lib/schemas";
 import { getStore } from "@/lib/agentog-store";
-import { actionFingerprint } from "@/lib/canonical";
-import { verifyApprovalToken } from "@/lib/approval-token";
-import {
-  describePayloadDiff,
-  humanBlockedExecutionReason,
-} from "@/lib/execution-diff";
-import { sendAuditReceiptEmail } from "@/lib/agentmail";
-import { resolveGuardianEmail } from "@/lib/env";
+import { processExecution } from "@/lib/process-execution";
 
 export const runtime = "nodejs";
 
@@ -24,105 +17,28 @@ export async function POST(request: Request) {
 
   const { intent_id, approval_token, final_payload } = parsed.data;
   const store = getStore();
-  const intent = store.getIntent(intent_id);
 
-  if (!intent) {
-    return NextResponse.json({ status: "blocked", reason: "Unknown intent." }, { status: 404 });
-  }
-
-  if (intent.approval_status !== "approved") {
-    return NextResponse.json(
-      { status: "blocked", reason: "Intent is not approved." },
-      { status: 403 },
-    );
-  }
-
-  const claims = verifyApprovalToken(approval_token);
-  if (!claims || claims.intent_id !== intent_id) {
-    store.addAudit(intent_id, "execute_blocked_bad_token", {});
-    return NextResponse.json(
-      { status: "blocked", reason: "Invalid or expired approval token." },
-      { status: 403 },
-    );
-  }
-
-  if (claims.approved_action_hash !== intent.action_hash) {
-    return NextResponse.json(
-      { status: "blocked", reason: "Token does not match stored intent fingerprint." },
-      { status: 403 },
-    );
-  }
-
-  const finalHash = actionFingerprint(final_payload);
-  const allowed = finalHash === intent.action_hash;
-
-  const attempt = {
-    id: `exe_${crypto.randomUUID()}`,
+  const result = await processExecution(
+    store,
     intent_id,
+    approval_token,
     final_payload,
-    final_action_hash: finalHash,
-    result: allowed ? ("allowed" as const) : ("blocked" as const),
-    block_reason: allowed
-      ? undefined
-      : humanBlockedExecutionReason(intent.raw_input, final_payload),
-    created_at: new Date().toISOString(),
-  };
+    { sendAuditEmail: true },
+  );
 
-  store.pushExecutionAttempt(attempt);
-  store.addAudit(intent_id, allowed ? "execute_allowed" : "execute_blocked", {
-    final_action_hash: finalHash,
-    expected: intent.action_hash,
-    block_reason: attempt.block_reason,
-  });
-
-  const guardianEmail = resolveGuardianEmail();
-
-  if (guardianEmail) {
-    const lines = [
-      "AgentOG Action Receipt",
-      "",
-      allowed ? "Execution result: ALLOWED" : "Execution result: BLOCKED",
-      `Intent: ${intent_id}`,
-      `Approved fingerprint: ${intent.action_hash}`,
-      `Final fingerprint: ${finalHash}`,
-      "",
-      "Approved action:",
-      `Vendor: ${intent.raw_input.vendor}`,
-      `Amount: $${intent.raw_input.amount}`,
-      `Pickup: ${intent.raw_input.pickup}`,
-      `Dropoff: ${intent.raw_input.dropoff}`,
-      `Time: ${intent.raw_input.scheduled_time}`,
-      "",
-      allowed
-        ? "Final payload matched approved action fingerprint."
-        : `Blocked reason: ${attempt.block_reason}`,
-      ...(allowed
-        ? []
-        : [`Technical detail: ${describePayloadDiff(intent.raw_input, final_payload).join("; ")}`]),
-    ];
-    try {
-      await sendAuditReceiptEmail({ to: guardianEmail, lines });
-      store.appendReceiptLine(
-        allowed
-          ? "Emailed audit receipt — execution matched the approved fingerprint."
-          : "Emailed audit receipt — execution was blocked (payload drift).",
-      );
-    } catch {
-      store.appendReceiptLine("Audit receipt email didn't send — check AgentMail.");
-    }
+  if (!result.ok) {
+    return NextResponse.json(result.body, { status: result.status });
   }
 
-  if (allowed) {
+  if (result.allowed) {
     return NextResponse.json({
       status: "allowed",
-      reason: "Final payload matches approved action fingerprint.",
+      reason: result.reason,
     });
   }
 
   return NextResponse.json({
     status: "blocked",
-    reason:
-      attempt.block_reason ??
-      "Final action does not match approved action fingerprint.",
+    reason: result.reason,
   });
 }
