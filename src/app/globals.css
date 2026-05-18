@@ -978,7 +978,7 @@ table.dash-browser-table {
 .home-product {
   position: relative;
   min-height: 100vh;
-  max-width: 1100px;
+  max-width: 1240px;
   margin: 0 auto;
   padding: 1.25rem 1.25rem 5rem;
 }
@@ -1037,14 +1037,40 @@ table.dash-browser-table {
 
 .home-hero-split {
   display: grid;
-  gap: 2.25rem;
+  gap: 2rem;
   align-items: start;
 }
 
-@media (min-width: 900px) {
-  .home-hero-split {
-    grid-template-columns: minmax(0, 1fr) minmax(300px, 1fr);
-    gap: 3rem;
+/* Triple hero: copy | architecture | compact preview rail */
+.home-hero-split-triple {
+  gap: 1.75rem;
+}
+
+@media (min-width: 768px) and (max-width: 1099px) {
+  .home-hero-split-triple {
+    grid-template-columns: 1fr minmax(210px, 260px);
+    gap: 1.25rem;
+    align-items: start;
+  }
+
+  .home-hero-split-triple .home-hero-copy {
+    grid-column: 1 / -1;
+  }
+
+  .home-hero-split-triple .home-hero-diagram {
+    grid-column: 1;
+  }
+
+  .home-hero-split-triple .home-product-shot--rail {
+    grid-column: 2;
+    align-self: start;
+  }
+}
+
+@media (min-width: 1100px) {
+  .home-hero-split-triple {
+    grid-template-columns: minmax(260px, 380px) minmax(300px, 1fr) minmax(228px, 288px);
+    gap: 1.25rem 1.5rem;
     align-items: center;
   }
 }
@@ -1115,6 +1141,60 @@ table.dash-browser-table {
   border: 1px solid var(--border-strong);
   box-shadow: var(--shadow-md);
   background: var(--cream-card);
+}
+
+/* Narrow approval preview column (hero rail) */
+.home-product-shot--rail .home-shot-body {
+  padding: 0.85rem 0.9rem 1rem;
+}
+
+.home-product-shot--rail .home-shot-label {
+  font-size: 0.625rem;
+}
+
+.home-product-shot--rail .home-shot-hash {
+  font-size: 0.72rem;
+  margin-bottom: 0.65rem;
+}
+
+.home-product-shot--rail .home-shot-card {
+  padding: 0.7rem 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.home-product-shot--rail .home-shot-vendor {
+  font-size: 0.8125rem;
+}
+
+.home-product-shot--rail .home-shot-price {
+  font-size: 0.9375rem;
+}
+
+.home-product-shot--rail .home-shot-meta {
+  font-size: 0.72rem;
+  margin-bottom: 0.65rem;
+}
+
+.home-product-shot--rail .home-shot-actions {
+  gap: 0.35rem;
+}
+
+.home-product-shot--rail .home-shot-btn {
+  font-size: 0.625rem;
+  padding: 0.35rem 0.5rem;
+}
+
+.home-product-shot--rail .home-shot-gate {
+  padding: 0.45rem 0.55rem;
+  font-size: 0.68rem;
+}
+
+.home-product-shot--rail .home-shot-chrome {
+  padding: 8px 10px;
+}
+
+.home-product-shot--rail .home-shot-url {
+  font-size: 0.6rem;
 }
 
 /* Product preview mock */

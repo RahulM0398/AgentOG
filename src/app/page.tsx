@@ -27,7 +27,7 @@ export default function HomePage() {
       </header>
 
       <main className="home-main">
-        <section className="home-hero-split" aria-labelledby="home-hero-heading">
+        <section className="home-hero-split home-hero-split-triple" aria-labelledby="home-hero-heading">
           <div className="home-hero-copy">
             <p className="home-eyebrow">Human approval · Execution control</p>
             <h1 id="home-hero-heading" className="home-headline">
@@ -60,6 +60,38 @@ export default function HomePage() {
               alt="Architecture: phone, web, and AI agents propose an action; AgentOG verifies with fingerprint, human approval, and execution gate; approved flows reach payment, booking, forms, and audit, or changed payloads are blocked."
             />
           </figure>
+
+          <div className="home-product-shot home-product-shot--rail" aria-hidden="true">
+            <div className="home-shot-window">
+              <div className="home-shot-chrome">
+                <span className="home-shot-dot" />
+                <span className="home-shot-dot" />
+                <span className="home-shot-dot" />
+                <span className="home-shot-url">agentog · preview</span>
+              </div>
+              <div className="home-shot-body">
+                <p className="home-shot-label">Action fingerprint</p>
+                <p className="home-shot-hash">sha256 · a7f3…c91e</p>
+                <div className="home-shot-card">
+                  <div className="home-shot-row">
+                    <span className="home-shot-vendor">Accessible Dispatch</span>
+                    <span className="home-shot-price">$41.50</span>
+                  </div>
+                  <p className="home-shot-meta">560 20th St → Ghirardelli Sq · after 5 PM · wheelchair</p>
+                  <div className="home-shot-actions">
+                    <span className="home-shot-btn home-shot-btn-primary">Approve exact action</span>
+                    <span className="home-shot-btn home-shot-btn-ghost">Reject</span>
+                  </div>
+                </div>
+                <div className="home-shot-gate">
+                  <span className="home-shot-gate-icon">✓</span>
+                  <span>
+                    Gate checks token + payload — tampered vendor or amount → <strong>blocked</strong>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section className="home-strip" aria-labelledby="home-flow-heading">
