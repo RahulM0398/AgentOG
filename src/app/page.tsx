@@ -15,12 +15,44 @@ const USE_CASES = [
 export default function HomePage() {
   return (
     <div className="home-product">
+      <header className="home-topbar">
+        <span className="home-brand">AgentOG</span>
+        <nav className="home-topnav" aria-label="Primary">
+          <Link href="/dashboard" className="home-nav-link" prefetch={false}>
+            Live demo
+          </Link>
+          <Link href="/dashboard" className="dash-btn dash-btn-primary home-nav-cta" prefetch={false}>
+            Open dashboard
+          </Link>
+        </nav>
+      </header>
+
       <main className="home-main">
-        <section className="home-hero-preview-only" aria-label="Approval preview">
-          <h1 className="visually-hidden">
-            Approve the exact AI agent action — fingerprint, human approval, execution gate — before execution.
-          </h1>
-          <div className="home-product-shot home-product-shot--solo">
+        <section className="home-hero-split" aria-labelledby="home-hero-heading">
+          <div className="home-hero-copy">
+            <p className="home-eyebrow">Human approval · Execution control</p>
+            <h1 id="home-hero-heading" className="home-headline">
+              Secure agent actions at the moment of impact — then prove execution matched what was approved.
+            </h1>
+            <p className="home-subhead">
+              AgentOG fingerprints high-impact requests (money, bookings, data, commitments), collects explicit human
+              approval for <em>that payload</em>, mints a short-lived token, and blocks execution when reality drifts.
+            </p>
+            <div className="home-hero-actions">
+              <Link href="/dashboard" className="dash-btn dash-btn-primary home-hero-btn" prefetch={false}>
+                Run the interactive demo
+              </Link>
+              <a href="tel:+14782497644" className="dash-btn dash-btn-outline home-hero-btn">
+                Call · +1 (478) 249-7644
+              </a>
+            </div>
+            <p className="home-hero-note">
+              Voice hits your deployment via AgentPhone webhooks when configured — same approval envelope as the web
+              demo.
+            </p>
+          </div>
+
+          <div className="home-product-shot" aria-hidden="true">
             <div className="home-shot-window">
               <div className="home-shot-chrome">
                 <span className="home-shot-dot" />
@@ -109,7 +141,7 @@ export default function HomePage() {
 
         <section className="home-compare" aria-labelledby="compare-heading">
           <h2 id="compare-heading" className="home-compare-title">
-            MFA proves identity · AgentOG proves the action
+            MFA proves identity · AgentOG proves action security
           </h2>
           <div className="home-compare-grid">
             <div className="home-compare-card">
@@ -127,21 +159,23 @@ export default function HomePage() {
         </section>
 
         <section className="home-architecture-block" aria-labelledby="architecture-caption">
-          <figure className="home-architecture-figure">
-            <Image
-              src="/images/agentog-architecture.png"
-              alt="Architecture: phone, web, and AI agents feed an action proposal into AgentOG fingerprinting, human approval, and execution gate; approved actions proceed to payment, booking, forms, and audit, while changed payloads are blocked."
-              width={2816}
-              height={1536}
-              className="home-architecture-img"
-              sizes="(max-width: 900px) 100vw, min(1040px, 92vw)"
-              priority={false}
-            />
-            <figcaption id="architecture-caption" className="home-architecture-caption">
-              Phone, web, and AI agents share one path: fingerprint, human approval, execution gate — then payments or
-              commits.
-            </figcaption>
-          </figure>
+          <div className="home-architecture-inner">
+            <figure className="home-architecture-figure">
+              <Image
+                src="/images/agentog-architecture.png"
+                alt="Architecture: phone, web, and AI agents feed an action proposal into AgentOG fingerprinting, human approval, and execution gate; approved actions proceed to payment, booking, forms, and audit, while changed payloads are blocked."
+                width={2816}
+                height={1536}
+                className="home-architecture-img"
+                sizes="(max-width: 640px) 95vw, 640px"
+                priority={false}
+              />
+              <figcaption id="architecture-caption" className="home-architecture-caption">
+                End-to-end security path: proposals enter AgentOG verification — fingerprint, approval, gate — before any
+                payment or sensitive commit.
+              </figcaption>
+            </figure>
+          </div>
         </section>
 
         <section className="home-demo-panel" aria-labelledby="demo-heading">

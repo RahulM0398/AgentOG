@@ -1035,20 +1035,96 @@ table.dash-browser-table {
   gap: 3rem;
 }
 
-/* Hero: single-line title + centered approval preview mock */
-.home-hero-preview-only {
-  text-align: center;
-  padding: 0.25rem 0 0;
+/* Hero: copy + approval preview (two columns on wide screens) */
+.home-hero-split {
+  display: grid;
+  gap: 2rem;
+  align-items: center;
 }
 
-.home-product-shot--solo {
-  max-width: 420px;
-  margin: 0 auto;
+@media (min-width: 900px) {
+  .home-hero-split {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 380px);
+    gap: 2.5rem;
+  }
 }
 
-/* Architecture diagram (PNG) — placed above “Try the live story” */
+.home-hero-copy {
+  text-align: left;
+}
+
+.home-eyebrow {
+  margin: 0 0 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--orange);
+}
+
+.home-headline {
+  margin: 0 0 1rem;
+  font-size: clamp(1.65rem, 3.6vw, 2.2rem);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.14;
+  color: var(--ink);
+}
+
+.home-subhead {
+  margin: 0 0 1.35rem;
+  font-size: 1.02rem;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 52ch;
+}
+
+.home-subhead strong {
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+
+.home-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.home-hero-btn {
+  text-decoration: none !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-hero-note {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--muted2);
+  max-width: 48ch;
+}
+
+.home-hero-split > .home-product-shot {
+  max-width: 400px;
+}
+
+@media (min-width: 900px) {
+  .home-hero-split > .home-product-shot {
+    max-width: none;
+    justify-self: stretch;
+  }
+}
+
+/* Architecture diagram (PNG) — compact */
 .home-architecture-block {
   margin: 0;
+}
+
+.home-architecture-inner {
+  max-width: 640px;
+  margin: 0 auto;
 }
 
 .home-architecture-figure {
@@ -1066,9 +1142,9 @@ table.dash-browser-table {
 
 .home-architecture-caption {
   margin: 0.65rem auto 0;
-  max-width: 48rem;
+  max-width: 36rem;
   text-align: center;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   line-height: 1.45;
   color: var(--muted);
 }
