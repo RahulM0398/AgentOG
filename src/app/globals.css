@@ -1043,7 +1043,7 @@ table.dash-browser-table {
 
 @media (min-width: 900px) {
   .home-hero-split {
-    grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 1fr);
     gap: 3rem;
     align-items: center;
   }
@@ -1101,6 +1101,20 @@ table.dash-browser-table {
   line-height: 1.5;
   color: var(--muted2);
   max-width: 48ch;
+}
+
+.home-hero-diagram {
+  margin: 0;
+}
+
+.home-hero-diagram-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-md);
+  background: var(--cream-card);
 }
 
 /* Product preview mock */

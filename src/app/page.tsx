@@ -1,14 +1,14 @@
-import Image from "next/image";
 import Link from "next/link";
 
 const USE_CASES = [
-  "Payments",
-  "Bookings",
+  "Ride",
+  "Pharmacy",
+  "SaaS purchase",
+  "Appointments",
   "Forms",
+  "Refunds",
   "Procurement",
-  "Healthcare",
-  "SaaS",
-  "API actions",
+  "Caregiving",
 ];
 
 export default function HomePage() {
@@ -20,67 +20,51 @@ export default function HomePage() {
           <Link href="/dashboard" className="home-nav-link" prefetch={false}>
             Live demo
           </Link>
-          <Link
-            href="/dashboard"
-            className="dash-btn dash-btn-primary home-nav-cta"
-            prefetch={false}
-          >
+          <Link href="/dashboard" className="dash-btn dash-btn-primary home-nav-cta" prefetch={false}>
             Open dashboard
           </Link>
         </nav>
       </header>
 
       <main className="home-main">
-        <section className="home-problem-block" aria-labelledby="problem-heading">
-          <h2 id="problem-heading" className="home-problem-title">
-            The problem
-          </h2>
-          <p className="home-problem-lead">
-            AI agents can already place orders, submit forms, charge cards, and bind your organization to third parties.
-            Identity checks (MFA) only prove <em>who clicked approve</em> — they don&apos;t prove <em>which exact action</em>{" "}
-            left the building.
-          </p>
-          <p className="home-problem-body">
-            Without an execution envelope, a small model or integration drift can swap vendor, price, timing, or data
-            fields <strong>after</strong> the human said yes — and downstream systems will still run.
-          </p>
-        </section>
-
-        <section className="home-solution-split" aria-labelledby="solution-heading">
-          <div>
-            <h2 id="solution-heading" className="home-section-h2">
-              What AgentOG does
-            </h2>
-            <p className="home-body-strong">
-              AgentOG is an <strong>action-bound approval and execution gate</strong>: fingerprint the concrete payload,
-              get explicit human consent for that snapshot, issue a short-lived token, and refuse execution when the
-              final request doesn&apos;t match.
+        <section className="home-hero-split" aria-labelledby="home-hero-heading">
+          <div className="home-hero-copy">
+            <p className="home-eyebrow">Human approval · Execution control</p>
+            <h1 id="home-hero-heading" className="home-headline">
+              Stop agents at the moment of impact — then prove the exact action matched what was approved.
+            </h1>
+            <p className="home-subhead">
+              AgentOG fingerprints high-impact requests (money, bookings, data, commitments), collects explicit human
+              approval for <em>that payload</em>, mints a short-lived token, and blocks execution when reality drifts.
             </p>
-            <ul className="home-bullet-list">
-              <li>Voice, web, or agent SDK → same structured approval card</li>
-              <li>Tampered vendor / amount / route / sensitive fields → blocked at the gate</li>
-              <li>Payments (e.g. Stripe) only after an allowed gate check</li>
-            </ul>
+            <div className="home-hero-actions">
+              <Link href="/dashboard" className="dash-btn dash-btn-primary home-hero-btn" prefetch={false}>
+                Run the interactive demo
+              </Link>
+              <a href="tel:+14782497644" className="dash-btn dash-btn-outline home-hero-btn">
+                Call · +1 (478) 249-7644
+              </a>
+            </div>
+            <p className="home-hero-note">
+              Voice hits your deployment via AgentPhone webhooks when configured — same approval envelope as the web
+              demo.
+            </p>
           </div>
-          <figure className="home-diagram-wrap">
-            <Image
-              src="/images/agentog-architecture.png"
-              alt="Architecture diagram: phone, web, and AI agents feed an action proposal into AgentOG verification with fingerprint, human approval, and execution gate; approved actions flow to payment, booking, forms, and audit, while changed payloads are blocked."
-              width={1100}
-              height={620}
-              className="home-diagram-img"
-              priority
-              sizes="(max-width: 900px) 100vw, min(1100px, 92vw)"
+
+          <figure className="home-hero-diagram">
+            <img
+              src="/images/agentog-architecture.svg"
+              width={920}
+              height={440}
+              className="home-hero-diagram-img"
+              alt="Architecture: phone, web, and AI agents propose an action; AgentOG verifies with fingerprint, human approval, and execution gate; approved flows reach payment, booking, forms, and audit, or changed payloads are blocked."
             />
-            <figcaption className="home-diagram-cap">
-              Action-bound approval for AI agents — fingerprint, human approval, execution gate.
-            </figcaption>
           </figure>
         </section>
 
         <section className="home-strip" aria-labelledby="home-flow-heading">
           <h2 id="home-flow-heading" className="home-strip-title">
-            How it works
+            How it flows
           </h2>
           <ol className="home-flow-steps">
             <li>
@@ -89,57 +73,78 @@ export default function HomePage() {
             </li>
             <li>
               <span className="home-step-num">2</span>
-              <span className="home-step-text">AgentOG fingerprints that payload</span>
+              <span className="home-step-text">Fingerprint captures payload + policy context</span>
             </li>
             <li>
               <span className="home-step-num">3</span>
-              <span className="home-step-text">Human reviews + confirms with a code</span>
+              <span className="home-step-text">Human approves that exact action</span>
             </li>
             <li>
               <span className="home-step-num">4</span>
-              <span className="home-step-text">Short-lived approval token is minted</span>
+              <span className="home-step-text">Short-lived token issued</span>
             </li>
             <li>
               <span className="home-step-num">5</span>
-              <span className="home-step-text">Execution gate allows only exact-match runs</span>
+              <span className="home-step-text">Gate allows only a matching execution</span>
             </li>
           </ol>
         </section>
 
         <section className="home-pillars" aria-labelledby="pillars-heading">
           <h2 id="pillars-heading" className="visually-hidden">
-            Pillars
+            Product pillars
           </h2>
           <article className="home-pillar">
             <h3 className="home-pillar-title">Fingerprint</h3>
             <p className="home-pillar-body">
-              Vendor, price, route, conditions, and share rules hash together — not a vague blanket approval.
+              Structured intent + constraints become a stable hash — not a vague “yes” to whatever ships later.
             </p>
           </article>
           <article className="home-pillar">
-            <h3 className="home-pillar-title">Human approval</h3>
+            <h3 className="home-pillar-title">Approver</h3>
             <p className="home-pillar-body">
-              Duo-style review: see the action data, enter the OTP from email or voice, then approve or reject.
+              Email, SMS, voice, or your own channels — the human sees vendor, amount, terms, and sensitive-field rules
+              before committing.
             </p>
           </article>
           <article className="home-pillar">
             <h3 className="home-pillar-title">Execution gate</h3>
             <p className="home-pillar-body">
-              Runtime compares token + canonical payload. Divergence stops checkout and downstream commits.
+              Runtime checks token + canonical payload. Divergence → deny and redo with a corrected bundle (e.g.
+              Stripe only after match).
             </p>
           </article>
+        </section>
+
+        <section className="home-compare" aria-labelledby="compare-heading">
+          <h2 id="compare-heading" className="home-compare-title">
+            MFA proves identity · AgentOG proves the action
+          </h2>
+          <div className="home-compare-grid">
+            <div className="home-compare-card">
+              <p className="home-compare-label">Typical MFA</p>
+              <p className="home-compare-desc">Confirms the human at the keyboard or phone.</p>
+            </div>
+            <div className="home-compare-card home-compare-card-accent">
+              <p className="home-compare-label">AgentOG</p>
+              <p className="home-compare-desc">
+                Confirms the <strong>precise AI-initiated action</strong> that person approved — if the agent swaps
+                vendor, price, or timing, execution stops.
+              </p>
+            </div>
+          </div>
         </section>
 
         <section className="home-demo-panel" aria-labelledby="demo-heading">
           <div className="home-demo-panel-inner">
             <h2 id="demo-heading" className="home-demo-title">
-              Run the hosted demo
+              Try the live story
             </h2>
             <p className="home-demo-lead">
-              The dashboard walks one vertical (sample utterance → options → approval → gate → optional Stripe). Swap
-              the utterance or webhook for your own domain — the envelope stays the same.
+              The dashboard runs one vertical end-to-end (voice webhook → planning → optional live browse → approval →
+              gate). The ride line is <strong>demo only</strong>; the same envelope applies everywhere below.
             </p>
-            <ul className="home-chip-row" aria-label="Example actions">
+            <ul className="home-chip-row" aria-label="Example domains">
               {USE_CASES.map((label) => (
                 <li key={label}>
                   <span className="home-chip">{label}</span>
@@ -147,17 +152,17 @@ export default function HomePage() {
               ))}
             </ul>
             <figure className="home-voice-card">
-              <figcaption className="home-voice-cap">Sample ride request (demo only)</figcaption>
+              <figcaption className="home-voice-cap">Sample utterance</figcaption>
               <blockquote className="home-voice-quote">
                 Book a cab from 560 20th Street to Ghirardelli Square after 5 PM, under $50, with wheelchair assistance.
               </blockquote>
             </figure>
             <div className="home-demo-actions">
               <Link href="/dashboard" className="dash-btn dash-btn-primary home-demo-btn" prefetch={false}>
-                Open dashboard demo
+                Start demo on dashboard
               </Link>
               <Link href="/rides" className="dash-btn dash-btn-outline home-demo-btn" prefetch={false}>
-                Static quote table (QA)
+                Static test scenario (quotes table)
               </Link>
             </div>
           </div>
