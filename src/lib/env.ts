@@ -47,12 +47,18 @@ export function demoEndpointsAllowed(): boolean {
 }
 
 /** Demo / hosted defaults when ALLOW_DEMO_ENDPOINTS allows outbound notifications without env. */
-const DEMO_APPROVER_EMAIL_FALLBACK = "rahulm33@agentmail.to";
+const DEMO_APPROVER_EMAIL_FALLBACK = "marrirahul33@gmail.com";
 const DEMO_APPROVER_PHONE_FALLBACK = "+12409064507";
+
+function envEmail(key: string): string | undefined {
+  const raw = process.env[key]?.trim();
+  if (!raw) return undefined;
+  return raw.replace(/^\uFEFF/, "").replace(/^["']|["']$/g, "").trim() || undefined;
+}
 
 export function resolveGuardianEmail(): string | undefined {
   const explicit =
-    process.env.GUARDIAN_EMAIL?.trim() || process.env.AGENT_OG_APPROVER_EMAIL?.trim();
+    envEmail("GUARDIAN_EMAIL") || envEmail("AGENT_OG_APPROVER_EMAIL");
   if (explicit) return explicit;
   if (demoEndpointsAllowed()) return DEMO_APPROVER_EMAIL_FALLBACK;
   return undefined;

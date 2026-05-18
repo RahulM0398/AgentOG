@@ -127,7 +127,7 @@ class AgentOGMemoryStore {
 
   appendReceiptLine(line: string) {
     const receipts = [...(this.dashboard.receipts ?? [])];
-    receipts.push(`${nowIso()} ${line}`);
+    receipts.push(line.trim());
     this.touchDashboard({ receipts });
   }
 

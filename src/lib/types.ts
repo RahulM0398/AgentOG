@@ -103,5 +103,6 @@ export type DashboardSnapshot = {
     last_valid?: ExecutionAttempt;
     last_tampered?: ExecutionAttempt;
   };
+  /** Short human-readable activity lines (newest shown first on dashboard). */
   receipts?: string[];
 };

@@ -16,6 +16,44 @@ function searchStartUrl(query: string): string {
   return `https://www.google.com/search?q=${encodeURIComponent(q)}`;
 }
 
+function stripMarkdownJsonFence(text: string): string {
+  let t = text.trim();
+  const inner = t.match(/```(?:json)?\s*\r?\n?([\s\S]*?)```/i);
+  if (inner?.[1]) t = inner[1].trim();
+  return t;
+}
+
+/** First `{ ... }` with balanced braces — avoids greedy-regex grabbing trailing prose. */
+function extractBalancedJsonObject(text: string): string | null {
+  const start = text.indexOf("{");
+  if (start < 0) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < text.length; i++) {
+    const c = text[i]!;
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (inString) {
+      if (c === "\\") escape = true;
+      else if (c === '"') inString = false;
+      continue;
+    }
+    if (c === '"') {
+      inString = true;
+      continue;
+    }
+    if (c === "{") depth++;
+    else if (c === "}") {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
 function buildSearchQuery(transcript: string, planner: Record<string, unknown>): string {
   const explicit =
     String(planner.web_search_query ?? "").trim() ||
@@ -72,6 +110,8 @@ Open the starting search page and browse the real open web. Find 3–5 concrete 
 
 Pick ONE best option that satisfies the constraints when possible. Do not invent URLs — only cite pages you actually opened.
 
+Every option object MUST include a non-empty "url" string for a page you visited. Set "primary_source_url" to that same URL for your chosen option.
+
 Respond ONLY with compact JSON (no markdown):
 {
   "options": [
@@ -98,8 +138,10 @@ Respond ONLY with compact JSON (no markdown):
 
     const view = await created.complete({ interval: 2500 });
     const text = view.output ?? "";
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
+    const cleaned = stripMarkdownJsonFence(text.trim());
+    const jsonSlice =
+      extractBalancedJsonObject(cleaned) ?? cleaned.match(/\{[\s\S]*\}/)?.[0];
+    if (!jsonSlice) {
       return {
         parse_error: true,
         raw_output_excerpt: text.slice(0, 2500),
@@ -107,7 +149,18 @@ Respond ONLY with compact JSON (no markdown):
         search_query: query,
       };
     }
-    const parsed = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(jsonSlice) as Record<string, unknown>;
+    } catch {
+      return {
+        parse_error: true,
+        json_parse_error: true,
+        raw_output_excerpt: text.slice(0, 2500),
+        start_url: startUrl,
+        search_query: query,
+      };
+    }
     return {
       ...parsed,
       start_url: startUrl,

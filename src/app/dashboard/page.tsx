@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { receiptLineForDisplay } from "@/lib/receipt-display";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { DEFAULT_RIDE_TRANSCRIPT } from "@/lib/demo-default-transcript";
 import type { DashboardSnapshot } from "@/lib/types";
@@ -444,9 +445,14 @@ export default function DashboardPage() {
 
         <Panel title="Recent activity" className="demo-panel-span-2">
           <ul className="demo-receipts">
-            {(snap?.receipts ?? []).slice(-10).map((r) => (
-              <li key={r}>{r}</li>
-            ))}
+            {(snap?.receipts ?? [])
+              .slice(-12)
+              .reverse()
+              .map((r, i) => (
+                <li key={`${snap?.updated_at ?? "snap"}-${i}-${r.slice(0, 48)}`}>
+                  {receiptLineForDisplay(r)}
+                </li>
+              ))}
           </ul>
           {(snap?.receipts ?? []).length === 0 ? <p className="demo-muted">No events yet.</p> : null}
         </Panel>

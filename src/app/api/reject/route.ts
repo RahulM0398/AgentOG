@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       raw_input: intent.raw_input,
     },
   });
-  store.appendReceiptLine(`Intent ${intent.id} rejected by approver`);
+  store.appendReceiptLine("Approver rejected this action.");
 
   return NextResponse.json({ status: "rejected", intent_id: intentId });
 }

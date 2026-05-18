@@ -19,7 +19,21 @@ export function extractBrowserSelection(browser: Record<string, unknown>): {
   const scheduled_time =
     String(browser.scheduled_time ?? "as quoted online").trim() || "as quoted online";
   const reason = String(browser.reason ?? "").trim() || "Selected from research.";
-  const primary_source_url = String(browser.primary_source_url ?? "").trim();
+  let primary_source_url = String(browser.primary_source_url ?? "").trim();
+  if (!primary_source_url && opts?.length) {
+    const sv = vendor || String(browser.selected_vendor ?? "").trim();
+    const hit =
+      opts.find((o) => {
+        const v = String(o.vendor_or_site ?? o.title ?? "").trim();
+        if (!sv || !v) return false;
+        const a = v.toLowerCase();
+        const b = sv.toLowerCase();
+        return a === b || a.includes(b) || b.includes(a);
+      }) ?? opts[0];
+    primary_source_url = String(
+      hit?.url ?? hit?.link ?? hit?.source_url ?? "",
+    ).trim();
+  }
   if (!vendor || Number.isNaN(amount) || amount <= 0) return null;
   return { vendor, amount, scheduled_time, reason, primary_source_url };
 }

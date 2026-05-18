@@ -8,6 +8,7 @@ import {
   humanBlockedExecutionReason,
 } from "@/lib/execution-diff";
 import { sendAuditReceiptEmail } from "@/lib/agentmail";
+import { resolveGuardianEmail } from "@/lib/env";
 
 export const runtime = "nodejs";
 
@@ -74,9 +75,7 @@ export async function POST(request: Request) {
     block_reason: attempt.block_reason,
   });
 
-  const guardianEmail =
-    process.env.GUARDIAN_EMAIL?.trim() ||
-    process.env.AGENT_OG_APPROVER_EMAIL?.trim();
+  const guardianEmail = resolveGuardianEmail();
 
   if (guardianEmail) {
     const lines = [
@@ -103,9 +102,13 @@ export async function POST(request: Request) {
     ];
     try {
       await sendAuditReceiptEmail({ to: guardianEmail, lines });
-      store.appendReceiptLine(`Audit receipt emailed (${attempt.result})`);
+      store.appendReceiptLine(
+        allowed
+          ? "Emailed audit receipt — execution matched the approved fingerprint."
+          : "Emailed audit receipt — execution was blocked (payload drift).",
+      );
     } catch {
-      store.appendReceiptLine("Audit receipt email failed");
+      store.appendReceiptLine("Audit receipt email didn't send — check AgentMail.");
     }
   }
 

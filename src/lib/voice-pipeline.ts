@@ -212,16 +212,16 @@ export async function processVoiceTranscript(params: {
         ) {
           agentmailStatus = "skipped_missing_agentmail_config";
           store.appendReceiptLine(
-            "AgentMail: skipped — check AGENTMAIL_API_KEY and inbox id (AgentMail dashboard)",
+            "Skipped AgentMail — add AGENTMAIL_API_KEY and AGENTMAIL_INBOX_ID (or FROM inbox id).",
           );
         } else {
           agentmailStatus = "sent";
-          store.appendReceiptLine(`AgentMail: approval email sent to ${guardianEmail}`);
+          store.appendReceiptLine(`Sent approval email to ${guardianEmail}.`);
         }
-      } catch (e) {
+      } catch {
         agentmailStatus = "send_failed";
         store.appendReceiptLine(
-          `AgentMail send failed: ${e instanceof Error ? e.message : String(e)}`,
+          "Approval email didn't send — check AgentMail keys and Vercel logs.",
         );
       }
     }
@@ -251,16 +251,16 @@ export async function processVoiceTranscript(params: {
         ) {
           agentphoneStatus = "skipped_missing_agentphone_config";
           store.appendReceiptLine(
-            "AgentPhone: skipped — check AGENTPHONE_API_KEY and AGENTPHONE_AGENT_ID",
+            "Skipped AgentPhone — add AGENTPHONE_API_KEY and AGENTPHONE_AGENT_ID.",
           );
         } else {
           agentphoneStatus = "outbound_initiated";
-          store.appendReceiptLine(`AgentPhone: outbound call initiated (${guardianPhone})`);
+          store.appendReceiptLine(`Calling approver at ${guardianPhone}.`);
         }
-      } catch (e) {
+      } catch {
         agentphoneStatus = "failed";
         store.appendReceiptLine(
-          `AgentPhone call failed: ${e instanceof Error ? e.message : String(e)}`,
+          "Approver call failed — check AgentPhone configuration and logs.",
         );
       }
     }
@@ -285,7 +285,9 @@ export async function processVoiceTranscript(params: {
       pipeline_error: msg,
       intent: undefined,
     });
-    store.appendReceiptLine(`Pipeline stopped: ${msg}`);
+    store.appendReceiptLine(
+      `Couldn't finish the approval flow — ${msg.length > 140 ? `${msg.slice(0, 137)}…` : msg}`,
+    );
     throw e;
   }
 }
