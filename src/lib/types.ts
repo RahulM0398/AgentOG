@@ -61,8 +61,16 @@ export type ExecutionAttempt = {
 
 /** Set after each voice pipeline run — whether AgentMail / AgentPhone were invoked. */
 export type ApprovalDeliverySnapshot = {
-  agentmail: "sent" | "skipped_no_guardian_email" | "send_failed";
-  agentphone: "outbound_initiated" | "skipped_no_guardian_phone" | "failed";
+  agentmail:
+    | "sent"
+    | "skipped_no_guardian_email"
+    | "skipped_missing_agentmail_config"
+    | "send_failed";
+  agentphone:
+    | "outbound_initiated"
+    | "skipped_no_guardian_phone"
+    | "skipped_missing_agentphone_config"
+    | "failed";
 };
 
 export type DashboardSnapshot = {

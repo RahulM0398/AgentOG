@@ -26,6 +26,15 @@ export default function DashboardPage() {
     return () => clearInterval(id);
   }, [refresh]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const q = new URLSearchParams(window.location.search);
+    if (q.has("approved") || q.has("rejected")) {
+      void refresh();
+      window.history.replaceState({}, "", "/dashboard");
+    }
+  }, [refresh]);
+
   async function resetDemo() {
     setBusy(true);
     setExecResult(null);
@@ -104,7 +113,7 @@ export default function DashboardPage() {
     if (!token) {
       setExecResult({
         title: "Approve first",
-        body: "Open the approval link, enter the code from email or voice, then approve the exact action.",
+        body: "Open Approval page, enter the OTP, then approve.",
         variant: "neutral",
       });
       return;
@@ -165,7 +174,7 @@ export default function DashboardPage() {
     if (!token) {
       setExecResult({
         title: "Approve first",
-        body: "Approve the intent, verify the payload, then open Stripe.",
+        body: "Approve the intent, run Gate · match, then Pay (Stripe).",
         variant: "neutral",
       });
       return;
@@ -176,15 +185,25 @@ export default function DashboardPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ intent_id: intentId, approval_token: token }),
     });
-    const data = (await res.json()) as { url?: string };
+    const data = (await res.json()) as { url?: string; message?: string; error?: string };
     setBusy(false);
-    if (data.url) window.location.href = data.url;
-    else
-      setExecResult({
-        title: "Checkout unavailable",
-        body: JSON.stringify(data, null, 2),
-        variant: "bad",
-      });
+    if (data.url) {
+      window.location.href = data.url;
+      return;
+    }
+    setExecResult({
+      title: "Checkout blocked",
+      body:
+        data.message ??
+        (data.error === "execute_gate_required"
+          ? 'Run “Gate · match” successfully before paying.'
+          : data.error === "invalid_token"
+            ? "Approval token missing or expired — approve again on this browser."
+            : data.error === "not_approved"
+              ? "Approve the intent first."
+              : "Stripe did not return a link — check STRIPE_SECRET_KEY and simulated mode."),
+      variant: "bad",
+    });
   }
 
   const planner = snap?.planner_task as Record<string, unknown> | undefined;
@@ -205,35 +224,38 @@ export default function DashboardPage() {
       <header className="demo-hero">
         <h1>AgentOG demo</h1>
         <p className="demo-lead">
-          MFA proves who you are. AgentOG proves <strong>exactly which action</strong> was approved — fingerprint,
-          human approval, short-lived token, execution gate.
+          Fingerprint → approval card → short-lived token → execution gate → optional payment.
         </p>
       </header>
 
-      <section className="demo-actions demo-actions-toolbar">
-        <button type="button" className="dash-btn dash-btn-outline" disabled={busy} onClick={() => void resetDemo()}>
-          Reset demo
+      <section className="demo-actions demo-actions-toolbar demo-actions-compact">
+        <button type="button" className="dash-btn dash-btn-outline demo-action-btn" disabled={busy} onClick={() => void resetDemo()}>
+          Clear demo
         </button>
-        <button type="button" className="dash-btn dash-btn-primary" disabled={busy} onClick={() => void simulateVoice()}>
-          Try sample utterance
+        <button type="button" className="dash-btn dash-btn-primary demo-action-btn" disabled={busy} onClick={() => void simulateVoice()}>
+          Sample request
         </button>
         {snap?.intent?.approval_url ? (
-          <Link href={snap.intent.approval_url} className="dash-btn dash-btn-outline" style={{ textDecoration: "none" }}>
-            Open approval
+          <Link
+            href={snap.intent.approval_url}
+            className="dash-btn dash-btn-outline demo-action-btn"
+            style={{ textDecoration: "none" }}
+          >
+            Approval page
           </Link>
         ) : (
-          <span className="dash-btn dash-btn-outline" style={{ opacity: 0.4, cursor: "not-allowed" }}>
-            Open approval
+          <span className="dash-btn dash-btn-outline demo-action-btn" style={{ opacity: 0.4, cursor: "not-allowed" }}>
+            Approval page
           </span>
         )}
-        <button type="button" className="dash-btn dash-btn-outline" disabled={busy} onClick={() => void runExecute("valid")}>
-          Verify approved payload
+        <button type="button" className="dash-btn dash-btn-outline demo-action-btn" disabled={busy} onClick={() => void runExecute("valid")}>
+          Gate · match
         </button>
-        <button type="button" className="dash-btn dash-btn-danger" disabled={busy} onClick={() => void runExecute("tampered")}>
-          Send tampered payload
+        <button type="button" className="dash-btn dash-btn-danger demo-action-btn" disabled={busy} onClick={() => void runExecute("tampered")}>
+          Gate · tampered
         </button>
-        <button type="button" className="dash-btn dash-btn-outline" disabled={busy} onClick={() => void checkout()}>
-          Stripe checkout
+        <button type="button" className="dash-btn dash-btn-outline demo-action-btn" disabled={busy} onClick={() => void checkout()}>
+          Pay (Stripe)
         </button>
       </section>
 
@@ -285,17 +307,28 @@ export default function DashboardPage() {
           <Collapsible label="Raw JSON" value={planner} />
         </Panel>
 
-        <Panel title="Live web research" className="demo-panel-span-2">
+        <Panel title="Options & quotes" className="demo-panel-span-2">
+          {browser?.research_provider ? (
+            <p className="demo-mini">
+              Source · <strong>{String(browser.research_provider)}</strong>
+            </p>
+          ) : null}
           {browser?.demo_fallback ? (
             <p className="demo-fallback-badge">
-              Demo estimate — live Browser Use returned no priced option or isn&apos;t configured. Set{" "}
-              <code>BROWSER_USE_API_KEY</code> and <code>MOCK_INTEGRATIONS=false</code> for real browsing.
+              Demo estimate — every provider in <code>AGENTOG_RESEARCH_CHAIN</code> failed or returned no price. Default
+              chain is Browser Use → OpenAI JSON → Gemini JSON. Add keys accordingly.
+            </p>
+          ) : null}
+          {!browser?.demo_fallback &&
+          (browser?.research_provider === "openai_json" || browser?.research_provider === "gemini_json") ? (
+            <p className="demo-info-badge">
+              Structured quotes from the model — not a live browser tab. Put <code>browser_use</code> first in{" "}
+              <code>AGENTOG_RESEARCH_CHAIN</code> for real crawling.
             </p>
           ) : null}
           {browser?.needs_configuration && !browser?.demo_fallback ? (
             <p className="demo-muted">
-              Add <code>BROWSER_USE_API_KEY</code>, set <code>MOCK_INTEGRATIONS=false</code>, and supply any LLM keys
-              your Browser Use profile requires.
+              This step needs API keys for the providers in your chain (Browser Use, OpenAI, or Gemini).
             </p>
           ) : null}
           {browser?.search_query ? (
@@ -324,7 +357,7 @@ export default function DashboardPage() {
           ) : !browser?.needs_configuration && !browser?.demo_fallback ? (
             <p className="demo-muted">No options yet.</p>
           ) : null}
-          <Collapsible label="Raw Browser Use payload" value={browser} />
+          <Collapsible label="Raw research payload" value={browser} />
         </Panel>
 
         <Panel title="Approval envelope">

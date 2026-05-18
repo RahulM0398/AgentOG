@@ -1,11 +1,11 @@
 import type { ActionIntentInput } from "./types";
 import { getStore } from "./agentog-store";
-import { demoEndpointsAllowed, getBaseUrl } from "./env";
-import { demoFallbackBrowserPayload } from "./demo-browser-fallback";
+import { getBaseUrl, resolveGuardianEmail, resolveGuardianPhone } from "./env";
+import { extractBrowserSelection } from "./browser-selection";
 import { parseVoiceRequestToTask, classifyHighImpactAction } from "./gemini";
 import { queryPolicies } from "./moss-client";
 import { fetchSupermemoryContext } from "./supermemory-client";
-import { runBrowserUseLiveResearch } from "./browser-use-client";
+import { runResolvedResearch } from "./research-agent-options";
 import { buildApprovalEmail, sendAgentMailEmail } from "./agentmail";
 import { agentPhoneOutboundCall } from "./agentphone";
 
@@ -33,30 +33,6 @@ function sharedDefaultsGeneral(): string[] {
   return ["name", "phone", "email_or_contact"];
 }
 
-function extractBrowserSelection(browser: Record<string, unknown>): {
-  vendor: string;
-  amount: number;
-  scheduled_time: string;
-  reason: string;
-  primary_source_url: string;
-} | null {
-  let vendor = String(browser.selected_vendor ?? "").trim();
-  let amount = Number(browser.amount);
-  const opts = browser.options as Array<Record<string, unknown>> | undefined;
-  if ((!vendor || Number.isNaN(amount) || amount <= 0) && opts?.length) {
-    const o = opts[0]!;
-    vendor =
-      String(o.vendor_or_site ?? o.title ?? "").trim() ||
-      String(o.title ?? "").trim();
-    amount = Number(o.price_usd ?? NaN);
-  }
-  const scheduled_time = String(browser.scheduled_time ?? "as quoted online").trim() || "as quoted online";
-  const reason = String(browser.reason ?? "").trim() || "Selected from live web research.";
-  const primary_source_url = String(browser.primary_source_url ?? "").trim();
-  if (!vendor || Number.isNaN(amount) || amount <= 0) return null;
-  return { vendor, amount, scheduled_time, reason, primary_source_url };
-}
-
 export function buildActionPayload(params: {
   task: Record<string, unknown>;
   browser: Record<string, unknown>;
@@ -67,7 +43,7 @@ export function buildActionPayload(params: {
   const sel = extractBrowserSelection(browser);
   if (!sel) {
     throw new Error(
-      "Browser Use did not return a priced selection. Check BROWSER_USE_API_KEY, OPENAI_API_KEY if required by your Browser Use model, and logs.",
+      "No priced option available yet. Configure Browser Use for live browsing, or add OPENAI_API_KEY / Gemini keys so AgentOG can build structured quotes.",
     );
   }
 
@@ -147,13 +123,10 @@ export async function processVoiceTranscript(params: {
     const supermemoryText = await fetchSupermemoryContext(smQuery);
     store.touchDashboard({ supermemory_text: supermemoryText });
 
-    let browser = await runBrowserUseLiveResearch({
+    const browser = await runResolvedResearch({
       transcript: params.transcript,
       plannerTask,
     });
-    if (!extractBrowserSelection(browser) && demoEndpointsAllowed()) {
-      browser = demoFallbackBrowserPayload(plannerTask, params.transcript, browser);
-    }
     store.touchDashboard({ browser_use: browser });
 
     const input = buildActionPayload({
@@ -191,16 +164,18 @@ export async function processVoiceTranscript(params: {
       },
     });
 
-    let agentmailStatus: "sent" | "skipped_no_guardian_email" | "send_failed" =
-      "skipped_no_guardian_email";
+    let agentmailStatus:
+      | "sent"
+      | "skipped_no_guardian_email"
+      | "skipped_missing_agentmail_config"
+      | "send_failed" = "skipped_no_guardian_email";
     let agentphoneStatus:
       | "outbound_initiated"
       | "skipped_no_guardian_phone"
+      | "skipped_missing_agentphone_config"
       | "failed" = "skipped_no_guardian_phone";
 
-    const guardianEmail =
-      process.env.GUARDIAN_EMAIL?.trim() ||
-      process.env.AGENT_OG_APPROVER_EMAIL?.trim();
+    const guardianEmail = resolveGuardianEmail();
     if (guardianEmail) {
       const summary = {
         action_label: actionLabel(intent.raw_input.action_type),
@@ -223,9 +198,26 @@ export async function processVoiceTranscript(params: {
         intentSummary: summary,
       });
       try {
-        await sendAgentMailEmail({ to: guardianEmail, subject, text, html });
-        agentmailStatus = "sent";
-        store.appendReceiptLine(`AgentMail: approval card sent to ${guardianEmail}`);
+        const mailResult = await sendAgentMailEmail({
+          to: guardianEmail,
+          subject,
+          text,
+          html,
+        });
+        if (
+          mailResult &&
+          typeof mailResult === "object" &&
+          "skipped" in mailResult &&
+          mailResult.skipped
+        ) {
+          agentmailStatus = "skipped_missing_agentmail_config";
+          store.appendReceiptLine(
+            "AgentMail: skipped — check AGENTMAIL_API_KEY and inbox id (AgentMail dashboard)",
+          );
+        } else {
+          agentmailStatus = "sent";
+          store.appendReceiptLine(`AgentMail: approval email sent to ${guardianEmail}`);
+        }
       } catch (e) {
         agentmailStatus = "send_failed";
         store.appendReceiptLine(
@@ -234,9 +226,7 @@ export async function processVoiceTranscript(params: {
       }
     }
 
-    const guardianPhone =
-      process.env.GUARDIAN_PHONE?.trim() ||
-      process.env.AGENT_OG_APPROVER_PHONE?.trim();
+    const guardianPhone = resolveGuardianPhone();
     if (guardianPhone) {
       const ri = intent.raw_input;
       const greeting = [
@@ -249,16 +239,28 @@ export async function processVoiceTranscript(params: {
         .join(" ");
 
       try {
-        await agentPhoneOutboundCall({
+        const callResult = await agentPhoneOutboundCall({
           toNumber: guardianPhone,
           initialGreeting: greeting,
         });
-        agentphoneStatus = "outbound_initiated";
-        store.appendReceiptLine(`AgentPhone: guardian outbound call initiated (${guardianPhone})`);
+        if (
+          callResult &&
+          typeof callResult === "object" &&
+          "skipped" in callResult &&
+          callResult.skipped
+        ) {
+          agentphoneStatus = "skipped_missing_agentphone_config";
+          store.appendReceiptLine(
+            "AgentPhone: skipped — check AGENTPHONE_API_KEY and AGENTPHONE_AGENT_ID",
+          );
+        } else {
+          agentphoneStatus = "outbound_initiated";
+          store.appendReceiptLine(`AgentPhone: outbound call initiated (${guardianPhone})`);
+        }
       } catch (e) {
         agentphoneStatus = "failed";
         store.appendReceiptLine(
-          `AgentPhone guardian call failed: ${e instanceof Error ? e.message : String(e)}`,
+          `AgentPhone call failed: ${e instanceof Error ? e.message : String(e)}`,
         );
       }
     }

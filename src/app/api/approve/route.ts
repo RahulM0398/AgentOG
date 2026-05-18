@@ -10,19 +10,48 @@ export async function POST(request: Request) {
   const intentId = body?.intent_id ?? body?.intentId;
   const code = body?.verification_code ?? body?.verificationCode;
 
-  if (!intentId || !code) {
-    return NextResponse.json({ error: "missing_fields" }, { status: 400 });
+  if (!intentId) {
+    return NextResponse.json(
+      {
+        error: "intent_missing",
+        message: "This approval link is invalid.",
+      },
+      { status: 400 },
+    );
+  }
+
+  const otp = code != null ? String(code).trim() : "";
+  if (!otp) {
+    return NextResponse.json(
+      {
+        error: "otp_missing",
+        message: "Enter the verification code from your email or phone call.",
+      },
+      { status: 400 },
+    );
   }
 
   const store = getStore();
   const intent = store.getIntent(intentId);
   if (!intent) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
+    return NextResponse.json(
+      {
+        error: "not_found",
+        message: "No pending intent found — it may have been reset or expired.",
+      },
+      { status: 404 },
+    );
   }
 
-  if (intent.verification_code !== String(code).trim()) {
+  if (intent.verification_code !== otp) {
     store.addAudit(intentId, "approve_denied_bad_code", {});
-    return NextResponse.json({ error: "invalid_verification_code" }, { status: 403 });
+    return NextResponse.json(
+      {
+        error: "otp_mismatch",
+        message: "That code does not match. Check AgentMail or your approval call.",
+      },
+      { status: 403 },
+    );
   }
 
   store.setApprovalStatus(intentId, "approved");

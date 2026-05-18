@@ -46,6 +46,26 @@ export function demoEndpointsAllowed(): boolean {
   );
 }
 
+/** Demo / hosted defaults when ALLOW_DEMO_ENDPOINTS allows outbound notifications without env. */
+const DEMO_APPROVER_EMAIL_FALLBACK = "rahulm33@agentmail.to";
+const DEMO_APPROVER_PHONE_FALLBACK = "+12409064507";
+
+export function resolveGuardianEmail(): string | undefined {
+  const explicit =
+    process.env.GUARDIAN_EMAIL?.trim() || process.env.AGENT_OG_APPROVER_EMAIL?.trim();
+  if (explicit) return explicit;
+  if (demoEndpointsAllowed()) return DEMO_APPROVER_EMAIL_FALLBACK;
+  return undefined;
+}
+
+export function resolveGuardianPhone(): string | undefined {
+  const explicit =
+    process.env.GUARDIAN_PHONE?.trim() || process.env.AGENT_OG_APPROVER_PHONE?.trim();
+  if (explicit) return explicit;
+  if (demoEndpointsAllowed()) return DEMO_APPROVER_PHONE_FALLBACK;
+  return undefined;
+}
+
 export function mockIntegrations(): boolean {
   return process.env.MOCK_INTEGRATIONS === "true";
 }
