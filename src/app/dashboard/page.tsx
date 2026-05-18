@@ -26,22 +26,36 @@ export default function DashboardPage() {
     return () => clearInterval(id);
   }, [refresh]);
 
-  const milestones = useMemo(() => computeMilestones(snap), [snap]);
-
   async function resetDemo() {
     setBusy(true);
     setExecResult(null);
     try {
       const res = await fetch("/api/demo/reset", { method: "POST" });
-      if (res.ok) {
-        try {
-          for (const k of Object.keys(localStorage)) {
-            if (k.startsWith("agentog_token_")) localStorage.removeItem(k);
-          }
-        } catch {
-          /* ignore */
-        }
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        const hint =
+          data.error === "disabled"
+            ? "Demo endpoints are off in this environment. For production, set ALLOW_DEMO_ENDPOINTS=true, or run the app locally."
+            : `Request failed (${res.status}).`;
+        setExecResult({
+          title: "Could not reset",
+          body: hint,
+          variant: "bad",
+        });
+        return;
       }
+      try {
+        for (const k of Object.keys(localStorage)) {
+          if (k.startsWith("agentog_token_")) localStorage.removeItem(k);
+        }
+      } catch {
+        /* ignore */
+      }
+      setExecResult({
+        title: "Demo reset",
+        body: "Server state and saved approval tokens in this browser were cleared.",
+        variant: "ok",
+      });
     } finally {
       await refresh();
       setBusy(false);
@@ -51,7 +65,11 @@ export default function DashboardPage() {
   async function simulateVoice() {
     setBusy(true);
     setExecResult(null);
-    const res = await fetch("/api/demo/simulate-transcript", { method: "POST" });
+    const res = await fetch("/api/demo/simulate-transcript", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
     const data = (await res.json().catch(() => ({}))) as {
       error?: string;
       message?: string;
@@ -60,7 +78,7 @@ export default function DashboardPage() {
     setBusy(false);
     if (!res.ok) {
       setExecResult({
-        title: "Pipeline failed",
+        title: "Try sample utterance failed",
         body: data.message ?? data.error ?? JSON.stringify(data),
         variant: "bad",
       });
@@ -72,7 +90,7 @@ export default function DashboardPage() {
     if (!intentId || !snap?.intent?.raw_input) {
       setExecResult({
         title: "No intent yet",
-        body: "Complete a phone call or run “Try sample utterance” after Browser Use + Gemini are configured.",
+        body: "Run “Try sample utterance” (needs Gemini). Web research can use live Browser Use or a demo fallback.",
         variant: "neutral",
       });
       return;
@@ -86,7 +104,7 @@ export default function DashboardPage() {
     if (!token) {
       setExecResult({
         title: "Approve first",
-        body: "Open the approval link, enter the code from email/voice, tap Approve Exact Action.",
+        body: "Open the approval link, enter the code from email or voice, then approve the exact action.",
         variant: "neutral",
       });
       return;
@@ -147,7 +165,7 @@ export default function DashboardPage() {
     if (!token) {
       setExecResult({
         title: "Approve first",
-        body: "Approve the intent, run “Verify approved payload”, then open Stripe.",
+        body: "Approve the intent, verify the payload, then open Stripe.",
         variant: "neutral",
       });
       return;
@@ -173,21 +191,26 @@ export default function DashboardPage() {
   const browser = snap?.browser_use as Record<string, unknown> | undefined;
   const opts = browser?.options as Array<Record<string, unknown>> | undefined;
 
+  const plannerBrief = useMemo(() => {
+    if (!planner) return null;
+    return {
+      action_type: String(planner.action_type ?? "—"),
+      domain: String(planner.domain ?? "—"),
+      goal: String(planner.user_goal_summary ?? planner.web_search_query ?? "").trim().slice(0, 320),
+    };
+  }, [planner]);
+
   return (
-    <main className="demo-shell dash-wrap">
+    <main className="demo-shell demo-shell-wide dash-wrap">
       <header className="demo-hero">
         <h1>AgentOG demo</h1>
         <p className="demo-lead">
-          <strong>MFA proves who you are.</strong> AgentOG proves <strong>exactly which action</strong> was approved —
-          fingerprint → human approval → short-lived token → execution gate → Stripe only after match.
-        </p>
-        <p className="demo-muted">
-          Voice enters via signed AgentPhone webhooks. Gemini structures the ask. Browser Use searches the live web for real options.
-          Moss + Supermemory constrain policy and memory. AgentMail + outbound AgentPhone notify the approver.
+          MFA proves who you are. AgentOG proves <strong>exactly which action</strong> was approved — fingerprint,
+          human approval, short-lived token, execution gate.
         </p>
       </header>
 
-      <section className="demo-actions">
+      <section className="demo-actions demo-actions-toolbar">
         <button type="button" className="dash-btn dash-btn-outline" disabled={busy} onClick={() => void resetDemo()}>
           Reset demo
         </button>
@@ -210,13 +233,13 @@ export default function DashboardPage() {
           Send tampered payload
         </button>
         <button type="button" className="dash-btn dash-btn-outline" disabled={busy} onClick={() => void checkout()}>
-          Stripe (after gate allows)
+          Stripe checkout
         </button>
       </section>
 
-      <p className="demo-hint">
-        Sample line (override with AgentPhone):{" "}
-        <span style={{ color: "var(--text)" }}>{DEFAULT_RIDE_TRANSCRIPT}</span>
+      <p className="demo-hint demo-sample-line">
+        <span className="demo-hint-label">Sample line</span>
+        <span className="demo-sample-text">{DEFAULT_RIDE_TRANSCRIPT}</span>
       </p>
 
       {execResult ? (
@@ -233,138 +256,148 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
-      <section className="demo-milestones">
-        <h2 className="demo-h2">Flow</h2>
-        <ol className="demo-flow-list">
-          {milestones.map((m) => (
-            <li key={m.key} className={m.done ? "done" : ""}>
-              <span className="demo-flow-dot">{m.done ? "✓" : "○"}</span>
-              <span>{m.label}</span>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <div className="demo-panels">
-        <Panel title="1 · Voice transcript">
-          <pre className="demo-pre">{snap?.voice?.transcript ?? "—"}</pre>
+      <div className="demo-dash-grid">
+        <Panel title="Voice">
+          <pre className="demo-pre demo-pre-compact">{snap?.voice?.transcript ?? "—"}</pre>
           <p className="demo-mini">
-            Caller: {snap?.voice?.caller ?? "—"} · Channel: {snap?.voice?.channel ?? "—"}
+            Caller {snap?.voice?.caller ?? "—"} · {snap?.voice?.channel ?? "—"}
           </p>
         </Panel>
 
-        <Panel title="2 · Structured task (Gemini / Gemma)">
-          {planner ? (
-            <pre className="demo-pre">{JSON.stringify(planner, null, 2)}</pre>
+        <Panel title="Structured task">
+          {plannerBrief ? (
+            <ul className="demo-kv-list">
+              <li>
+                <span>Action</span> <span>{plannerBrief.action_type}</span>
+              </li>
+              <li>
+                <span>Domain</span> <span>{plannerBrief.domain}</span>
+              </li>
+              {plannerBrief.goal ? (
+                <li className="demo-kv-full">
+                  <span>Goal</span> <span>{plannerBrief.goal}</span>
+                </li>
+              ) : null}
+            </ul>
           ) : (
-            <p className="demo-muted">Waiting for transcript processing.</p>
+            <p className="demo-muted">Run an utterance to see Gemini&apos;s plan.</p>
           )}
+          <Collapsible label="Raw JSON" value={planner} />
         </Panel>
 
-        <Panel title="3 · Live web research (Browser Use)">
-          {browser?.needs_configuration ? (
+        <Panel title="Live web research" className="demo-panel-span-2">
+          {browser?.demo_fallback ? (
+            <p className="demo-fallback-badge">
+              Demo estimate — live Browser Use returned no priced option or isn&apos;t configured. Set{" "}
+              <code>BROWSER_USE_API_KEY</code> and <code>MOCK_INTEGRATIONS=false</code> for real browsing.
+            </p>
+          ) : null}
+          {browser?.needs_configuration && !browser?.demo_fallback ? (
             <p className="demo-muted">
-              Configure <code>BROWSER_USE_API_KEY</code>, set <code>MOCK_INTEGRATIONS=false</code>, and ensure your Browser Use model has any required LLM keys (e.g.{" "}
-              <code>OPENAI_API_KEY</code>) so the agent can browse real results — no fabricated marketplace rows are injected.
+              Add <code>BROWSER_USE_API_KEY</code>, set <code>MOCK_INTEGRATIONS=false</code>, and supply any LLM keys
+              your Browser Use profile requires.
             </p>
           ) : null}
           {browser?.search_query ? (
             <p className="demo-mini">
-              Search entry: <code>{String(browser.search_query)}</code>
-            </p>
-          ) : null}
-          {browser?.start_url ? (
-            <p className="demo-mini">
-              Started from: <code>{String(browser.start_url)}</code>
+              Search: <code>{String(browser.search_query)}</code>
             </p>
           ) : null}
           {opts?.length ? (
             <ul className="demo-option-list">
               {opts.map((o, i) => (
                 <li key={i}>
-                  <strong>{String(o.vendor_or_site ?? o.title)}</strong> — {String(o.title)}{" "}
-                  {o.price_usd != null ? `· ~$${String(o.price_usd)}` : ""}
+                  <strong>{String(o.vendor_or_site ?? o.title)}</strong>
+                  {o.price_usd != null ? ` · ~$${String(o.price_usd)}` : ""}
                   {o.url ? (
                     <>
                       {" "}
                       ·{" "}
                       <a href={String(o.url)} target="_blank" rel="noreferrer">
-                        link
+                        source
                       </a>
                     </>
                   ) : null}
                 </li>
               ))}
             </ul>
+          ) : !browser?.needs_configuration && !browser?.demo_fallback ? (
+            <p className="demo-muted">No options yet.</p>
           ) : null}
-          <pre className="demo-pre demo-pre-tall">{browser ? JSON.stringify(browser, null, 2) : "—"}</pre>
+          <Collapsible label="Raw Browser Use payload" value={browser} />
         </Panel>
 
-        <Panel title="4 · Policy & memory (Moss + Supermemory)">
+        <Panel title="Approval envelope">
+          {snap?.intent?.id ? (
+            <>
+              <ul className="demo-kv-list">
+                <li>
+                  <span>Intent</span>{" "}
+                  <span>
+                    <code>{snap.intent.id}</code>
+                  </span>
+                </li>
+                <li>
+                  <span>Status</span> <span>{snap.intent.approval_status}</span>
+                </li>
+                <li>
+                  <span>Code</span> <strong>{snap.intent.verification_code}</strong>
+                </li>
+                <li>
+                  <span>Vendor</span> <span>{snap.intent.vendor}</span>
+                </li>
+                <li>
+                  <span>Amount</span> <span>${snap.intent.amount}</span>
+                </li>
+              </ul>
+              <p className="demo-mini hash">{snap.intent.action_hash}</p>
+              <p className="demo-muted" style={{ marginTop: "0.75rem", fontSize: "0.8125rem" }}>
+                {snap.intent.raw_input?.action_summary ?? "—"}
+              </p>
+              {snap.intent.raw_input?.research_source_url ? (
+                <p className="demo-mini">
+                  <a href={snap.intent.raw_input.research_source_url} target="_blank" rel="noreferrer">
+                    Research link
+                  </a>
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <p className="demo-muted">No fingerprint until the pipeline produces a priced action.</p>
+          )}
+        </Panel>
+
+        <Panel title="Policy & memory">
           <ul className="demo-bullet">
             {(snap?.moss_lines ?? []).length ? (
               snap!.moss_lines!.map((l) => <li key={l}>{l}</li>)
             ) : (
-              <li className="demo-muted">No Moss lines yet.</li>
+              <li className="demo-muted">No Moss lines.</li>
             )}
           </ul>
-          <pre className="demo-pre">{snap?.supermemory_text ?? "—"}</pre>
+          <p className="demo-meta-preview">{snap?.supermemory_text ?? "—"}</p>
         </Panel>
 
-        <Panel title="5 · Fingerprint & approval">
-          {snap?.intent?.id ? (
-            <>
-              <p>
-                Intent <code>{snap.intent.id}</code> · Status <strong>{snap.intent.approval_status}</strong>
-              </p>
-              <p className="demo-mini">
-                Code: <strong>{snap.intent.verification_code}</strong>
-              </p>
-              <p className="demo-mini hash">{snap.intent.action_hash}</p>
-              <dl className="demo-dl">
-                <dt>Vendor / option</dt>
-                <dd>{snap.intent.vendor}</dd>
-                <dt>Amount</dt>
-                <dd>${snap.intent.amount}</dd>
-                <dt>Summary</dt>
-                <dd>{snap.intent.raw_input?.action_summary ?? "—"}</dd>
-                <dt>Research URL</dt>
-                <dd>
-                  {snap.intent.raw_input?.research_source_url ? (
-                    <a href={snap.intent.raw_input.research_source_url} target="_blank" rel="noreferrer">
-                      {snap.intent.raw_input.research_source_url}
-                    </a>
-                  ) : (
-                    "—"
-                  )}
-                </dd>
-              </dl>
-            </>
-          ) : (
-            <p className="demo-muted">No intent until Browser Use returns a priced selection.</p>
-          )}
-        </Panel>
-
-        <Panel title="6 · Notifications">
-          <p>
+        <Panel title="Notifications">
+          <p className="demo-mini">
             AgentMail: <strong>{snap?.approval_delivery?.agentmail ?? "—"}</strong>
           </p>
-          <p>
-            AgentPhone outbound: <strong>{snap?.approval_delivery?.agentphone ?? "—"}</strong>
+          <p className="demo-mini">
+            AgentPhone: <strong>{snap?.approval_delivery?.agentphone ?? "—"}</strong>
           </p>
         </Panel>
 
-        <Panel title="7 · Execution gate">
-          <p>
-            Approved payload test:{" "}
+        <Panel title="Execution gate">
+          <p className="demo-mini">
+            Approved payload:{" "}
             {snap?.execution?.last_valid ? (
               <span className="dash-pill dash-pill-ok">{snap.execution.last_valid.result}</span>
             ) : (
               <span className="demo-muted">not run</span>
             )}
           </p>
-          <p>
-            Tampered payload test:{" "}
+          <p className="demo-mini">
+            Tampered payload:{" "}
             {snap?.execution?.last_tampered ? (
               <>
                 <span className="dash-pill dash-pill-bad">{snap.execution.last_tampered.result}</span>
@@ -376,54 +409,53 @@ export default function DashboardPage() {
           </p>
         </Panel>
 
-        <Panel title="8 · Audit trail">
+        <Panel title="Recent activity" className="demo-panel-span-2">
           <ul className="demo-receipts">
-            {(snap?.receipts ?? []).slice(-12).map((r) => (
+            {(snap?.receipts ?? []).slice(-10).map((r) => (
               <li key={r}>{r}</li>
             ))}
           </ul>
-          {(snap?.receipts ?? []).length === 0 ? (
-            <p className="demo-muted">Receipts appear after mail/calls/gate events.</p>
-          ) : null}
+          {(snap?.receipts ?? []).length === 0 ? <p className="demo-muted">No events yet.</p> : null}
         </Panel>
       </div>
 
-      <footer className="dash-footer-links">
+      <footer className="dash-footer-links demo-dash-footer">
         <Link href="/">Home</Link>
         {" · "}
-        <a href="/api/health" target="_blank" rel="noreferrer">
-          Integration health
-        </a>
+        <Link href="/rides">Test scenario (static quotes)</Link>
         {" · "}
-        <Link href="/rides">Legacy fixture page</Link>
+        <a className="footer-health" href="/api/health" target="_blank" rel="noreferrer">
+          App health status
+        </a>
       </footer>
     </main>
   );
 }
 
-function Panel({ title, children }: { title: string; children: ReactNode }) {
+function Panel({
+  title,
+  children,
+  className,
+}: {
+  title: string;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <section className="demo-panel">
+    <section className={`demo-panel ${className ?? ""}`}>
       <h2 className="demo-panel-title">{title}</h2>
       {children}
     </section>
   );
 }
 
-function computeMilestones(s: DashboardSnapshot | null) {
-  const browser = s?.browser_use as { needs_configuration?: boolean; options?: unknown[] } | undefined;
-  const browserOk =
-    !!browser &&
-    !browser.needs_configuration &&
-    Array.isArray(browser.options) &&
-    browser.options.length > 0;
-  return [
-    { key: "v", label: "Signed voice webhook + transcript", done: !!s?.voice?.transcript },
-    { key: "p", label: "Gemini/Gemma structured task", done: !!s?.planner_task },
-    { key: "b", label: "Browser Use live web options", done: browserOk },
-    { key: "f", label: "Action fingerprint + intent", done: !!s?.intent?.id },
-    { key: "n", label: "AgentMail + guardian call/SMS", done: !!s?.approval_delivery },
-    { key: "a", label: "Human approval + token", done: s?.intent?.approval_status === "approved" },
-    { key: "g", label: "Execution gate + Stripe path", done: !!s?.execution?.last_valid },
-  ];
+function Collapsible({ label, value }: { label: string; value: unknown }) {
+  if (value == null) return null;
+  const str = JSON.stringify(value, null, 2);
+  return (
+    <details className="demo-details">
+      <summary>{label}</summary>
+      <pre className="demo-pre demo-pre-compact">{str}</pre>
+    </details>
+  );
 }

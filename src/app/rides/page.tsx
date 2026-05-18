@@ -5,27 +5,29 @@ export default function RidesPage() {
   return (
     <main className="dash-wrap">
       <header className="dash-hero" style={{ marginBottom: "1.5rem" }}>
-        <h1>Mock ride marketplace</h1>
-        <p className="dash-tagline">
-          Optional static fixture — the production demo uses Browser Use on the live web instead of this page.
-        </p>
+        <p className="dash-tagline">Test scenario</p>
+        <h1>Static ride quotes (lab)</h1>
         <p className="dash-hero-lead" style={{ marginTop: "0.75rem" }}>
-          Keep this file only if you want a deterministic HTML lab for Browser Use. The main pipeline starts from a real search engine URL built from the caller transcript.
+          Deterministic HTML vendors and prices for Browser Use or QA — not live marketplace data. The main demo
+          pipeline normally starts from a real search URL built from the caller&apos;s transcript.
         </p>
       </header>
 
-      <p className="dash-section-title">Constraints implied by the caller</p>
-      <p style={{ color: "var(--muted)", marginTop: 0 }}>After 5 PM · under $50 · wheelchair assistance required.</p>
+      <p className="dash-section-title">Scenario constraints</p>
+      <p style={{ color: "var(--muted)", marginTop: 0 }}>
+        After 5 PM · under $50 · wheelchair assistance required — matches the sample cab request used on the
+        dashboard.
+      </p>
 
       <div className="dash-table-wrap" style={{ marginTop: "1.25rem" }}>
         <table className="dash-browser-table">
           <thead>
             <tr>
-              <th>Vendor</th>
-              <th>Price</th>
+              <th>Provider</th>
+              <th>Quote</th>
               <th>Wheelchair</th>
-              <th>Time</th>
-              <th>Judge note</th>
+              <th>Pickup window</th>
+              <th>Notes</th>
             </tr>
           </thead>
           <tbody>
@@ -45,7 +47,7 @@ export default function RidesPage() {
       </div>
 
       <footer className="dash-footer-links">
-        <Link href="/dashboard">← Demo console</Link>
+        <Link href="/dashboard">← Dashboard</Link>
       </footer>
     </main>
   );

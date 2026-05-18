@@ -6,7 +6,7 @@ function plannerModelName() {
   return (
     process.env.GEMINI_PLANNER_MODEL?.trim() ||
     process.env.GEMMA_MODEL?.trim() ||
-    "gemini-2.0-flash"
+    "gemini-2.5-flash"
   );
 }
 
@@ -14,7 +14,7 @@ function classifierModelName() {
   return (
     process.env.GEMINI_CLASSIFIER_MODEL?.trim() ||
     process.env.GEMMA_MODEL?.trim() ||
-    "gemini-2.0-flash"
+    "gemini-2.5-flash"
   );
 }
 

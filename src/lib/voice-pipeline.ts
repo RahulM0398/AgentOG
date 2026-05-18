@@ -1,6 +1,7 @@
 import type { ActionIntentInput } from "./types";
 import { getStore } from "./agentog-store";
-import { getBaseUrl } from "./env";
+import { demoEndpointsAllowed, getBaseUrl } from "./env";
+import { demoFallbackBrowserPayload } from "./demo-browser-fallback";
 import { parseVoiceRequestToTask, classifyHighImpactAction } from "./gemini";
 import { queryPolicies } from "./moss-client";
 import { fetchSupermemoryContext } from "./supermemory-client";
@@ -146,10 +147,13 @@ export async function processVoiceTranscript(params: {
     const supermemoryText = await fetchSupermemoryContext(smQuery);
     store.touchDashboard({ supermemory_text: supermemoryText });
 
-    const browser = await runBrowserUseLiveResearch({
+    let browser = await runBrowserUseLiveResearch({
       transcript: params.transcript,
       plannerTask,
     });
+    if (!extractBrowserSelection(browser) && demoEndpointsAllowed()) {
+      browser = demoFallbackBrowserPayload(plannerTask, params.transcript, browser);
+    }
     store.touchDashboard({ browser_use: browser });
 
     const input = buildActionPayload({
