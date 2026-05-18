@@ -2,20 +2,50 @@ import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 import { DEFAULT_RIDE_TRANSCRIPT } from "./demo-default-transcript";
 import { getGeminiApiKey, mockIntegrations } from "./env";
 
+/** Default when env is missing or names an unsupported Generative Language API model. */
+export const GEMINI_DEFAULT_MODEL_ID = "gemini-2.5-flash";
+
+/**
+ * IDs that commonly appear in docs or UI but return 404 on v1beta `generateContent`.
+ * Deployment env (e.g. Vercel) may still override locals — we coerce at runtime.
+ */
+function coerceGenerativeLanguageModelId(raw: string): string {
+  const id = raw.trim();
+  if (!id) return GEMINI_DEFAULT_MODEL_ID;
+  const low = id.toLowerCase();
+  if (
+    low === "gemini-3.1-flash" ||
+    low.startsWith("gemini-3.1-flash-") ||
+    low === "gemini-3.1-pro" ||
+    low.startsWith("gemini-3.1-pro-")
+  ) {
+    return GEMINI_DEFAULT_MODEL_ID;
+  }
+  return id;
+}
+
 function plannerModelName() {
-  return (
+  const resolved =
     process.env.GEMINI_PLANNER_MODEL?.trim() ||
     process.env.GEMMA_MODEL?.trim() ||
-    "gemini-2.5-flash"
-  );
+    GEMINI_DEFAULT_MODEL_ID;
+  return coerceGenerativeLanguageModelId(resolved);
 }
 
 function classifierModelName() {
-  return (
+  const resolved =
     process.env.GEMINI_CLASSIFIER_MODEL?.trim() ||
     process.env.GEMMA_MODEL?.trim() ||
-    "gemini-2.5-flash"
-  );
+    GEMINI_DEFAULT_MODEL_ID;
+  return coerceGenerativeLanguageModelId(resolved);
+}
+
+/** For health/debug — shows effective model IDs after coercion (no API keys). */
+export function getResolvedGeminiModelIds() {
+  return {
+    planner_model: plannerModelName(),
+    classifier_model: classifierModelName(),
+  };
 }
 
 function extractJsonObject(text: string): Record<string, unknown> {

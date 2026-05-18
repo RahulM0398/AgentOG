@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getResolvedGeminiModelIds } from "@/lib/gemini";
 import {
   getGeminiApiKey,
   mockIntegrations,
@@ -34,10 +35,13 @@ export async function GET() {
     process.env.VERCEL_URL?.trim() ||
     null;
 
+  const geminiModels = getResolvedGeminiModelIds();
+
   return NextResponse.json({
     status: "ok",
     integrations: {
       gemini_or_google_ai: gemini,
+      gemini_models_effective: geminiModels,
       mock_integrations: mockIntegrations(),
       moss,
       supermemory,
