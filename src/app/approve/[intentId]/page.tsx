@@ -53,7 +53,7 @@ export default function ApproveIntentPage() {
       /* ignore */
     }
     setMsg(
-      "Approved. Token saved in this browser. Return to the dashboard and run the execution gate tests.",
+      "Approved. Token saved in this browser. Return to the dashboard → Verify approved payload.",
     );
   }
 
@@ -99,6 +99,10 @@ export default function ApproveIntentPage() {
         </div>
         <dl className="dash-dl">
           <div>
+            <dt>Action type</dt>
+            <dd>{String(r.action_type ?? "")}</dd>
+          </div>
+          <div>
             <dt>Vendor</dt>
             <dd>
               <strong>{String(r.vendor)}</strong>
@@ -108,6 +112,22 @@ export default function ApproveIntentPage() {
             <dt>Amount</dt>
             <dd>
               ${String(r.amount)} {String(r.currency)}
+            </dd>
+          </div>
+          <div>
+            <dt>Summary</dt>
+            <dd>{String(r.action_summary ?? "—")}</dd>
+          </div>
+          <div>
+            <dt>Research URL</dt>
+            <dd>
+              {r.research_source_url ? (
+                <a href={String(r.research_source_url)} target="_blank" rel="noreferrer">
+                  {String(r.research_source_url)}
+                </a>
+              ) : (
+                "—"
+              )}
             </dd>
           </div>
           <div>

@@ -9,6 +9,8 @@ export const ActionIntentInputSchema = z.object({
   pickup: z.string().optional(),
   dropoff: z.string().optional(),
   scheduled_time: z.string().optional(),
+  action_summary: z.string().optional(),
+  research_source_url: z.string().optional(),
   required_conditions: z.array(z.string()).default([]),
   data_shared: z.array(z.string()).default([]),
   data_blocked: z.array(z.string()).default([]),

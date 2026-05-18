@@ -83,12 +83,15 @@ export async function POST(request: Request) {
     if (webhookId) store.recordWebhook(webhookId);
     const transcript = extractVoiceTranscript(payload);
     after(async () => {
-      if (transcript) {
+      if (!transcript) return;
+      try {
         await processVoiceTranscript({
           transcript,
           caller: from,
           channel: "voice",
         });
+      } catch (err) {
+        console.error("[AgentPhone webhook] pipeline error:", err);
       }
     });
     return new NextResponse("OK", { status: 200 });

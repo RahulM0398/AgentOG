@@ -16,11 +16,15 @@ export async function POST(request: Request) {
       ? body.transcript.trim()
       : DEFAULT_RIDE_TRANSCRIPT;
 
-  const result = await processVoiceTranscript({
-    transcript,
-    caller: body.caller ?? "+1-demo-caller",
-    channel: "demo",
-  });
-
-  return NextResponse.json(result);
+  try {
+    const result = await processVoiceTranscript({
+      transcript,
+      caller: body.caller ?? "+1-demo-caller",
+      channel: "demo",
+    });
+    return NextResponse.json(result);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ error: "pipeline_failed", message: msg }, { status: 502 });
+  }
 }

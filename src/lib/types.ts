@@ -7,6 +7,10 @@ export type ActionIntentInput = {
   pickup?: string;
   dropoff?: string;
   scheduled_time?: string;
+  /** One-line human summary of what was approved (any domain). */
+  action_summary?: string;
+  /** Primary page where Browser Use found the selected option. */
+  research_source_url?: string;
   required_conditions: string[];
   data_shared: string[];
   data_blocked: string[];
@@ -63,6 +67,8 @@ export type ApprovalDeliverySnapshot = {
 
 export type DashboardSnapshot = {
   updated_at: string;
+  /** Set when the voice pipeline fails before creating an intent (e.g. Browser Use misconfigured). */
+  pipeline_error?: string;
   approval_delivery?: ApprovalDeliverySnapshot;
   voice?: {
     transcript?: string;

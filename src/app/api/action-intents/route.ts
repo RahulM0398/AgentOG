@@ -51,12 +51,17 @@ export async function POST(request: Request) {
     process.env.AGENT_OG_APPROVER_EMAIL?.trim();
   if (guardianEmail) {
     const summary = {
-      action_label: "High-impact agent action",
+      action_label: String(intent.raw_input.action_type ?? "High-impact agent action").replace(
+        /_/g,
+        " ",
+      ),
       vendor: intent.raw_input.vendor,
       amount: intent.raw_input.amount,
       pickup: intent.raw_input.pickup,
       dropoff: intent.raw_input.dropoff,
       scheduled_time: intent.raw_input.scheduled_time,
+      action_summary: intent.raw_input.action_summary,
+      research_source_url: intent.raw_input.research_source_url,
       required_conditions: intent.raw_input.required_conditions,
       risk_level: intent.risk_level,
       data_shared: intent.raw_input.data_shared,

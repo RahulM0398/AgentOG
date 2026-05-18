@@ -25,18 +25,22 @@ function extractJsonObject(text: string): Record<string, unknown> {
 }
 
 export async function parseVoiceRequestToTask(transcript: string) {
+  const t = transcript?.trim() || DEFAULT_RIDE_TRANSCRIPT;
+
   if (mockIntegrations() || !getGeminiApiKey()) {
     return {
-      action_type: "book_service",
-      domain: "transportation",
-      pickup: "560 20th Street, San Francisco",
-      dropoff: "Ghirardelli Square, San Francisco",
-      time_constraint: "after 5 PM",
-      max_amount: 50,
-      required_conditions: ["wheelchair_assistance"],
+      action_type: "user_request",
+      domain: "general",
+      pickup: "",
+      dropoff: "",
+      time_constraint: "",
+      max_amount: 500,
+      required_conditions: [] as string[],
       requires_payment: true,
-      requires_location_data: true,
-      demo: true,
+      requires_location_data: false,
+      web_search_query: t.slice(0, 220),
+      user_goal_summary: t.slice(0, 900),
+      planner_fallback: true,
     };
   }
 
@@ -60,29 +64,46 @@ export async function parseVoiceRequestToTask(transcript: string) {
           },
           requires_payment: { type: SchemaType.BOOLEAN },
           requires_location_data: { type: SchemaType.BOOLEAN },
+          web_search_query: {
+            type: SchemaType.STRING,
+            description: "Short query optimized for a web search engine",
+          },
+          user_goal_summary: {
+            type: SchemaType.STRING,
+            description: "One paragraph summarizing what the user wants",
+          },
         },
         required: [
           "action_type",
           "domain",
-          "pickup",
-          "dropoff",
-          "time_constraint",
           "max_amount",
           "required_conditions",
           "requires_payment",
           "requires_location_data",
+          "web_search_query",
+          "user_goal_summary",
         ],
       },
     },
   });
 
-  const prompt = `You convert an end-user voice request into structured JSON for an approval system.
-Transcript:\n"""${transcript || DEFAULT_RIDE_TRANSCRIPT}"""\n
-Assume San Francisco if cities omitted. Use snake_case condition tokens like wheelchair_assistance.`;
+  const prompt = `Convert the caller transcript into structured JSON for an AI approval system (AgentOG).
+Transcript:\n"""${t}"""\n
+Rules:
+- Infer action_type (e.g. purchase_item, book_service, schedule_appointment, submit_form) and domain.
+- If locations matter (rides, deliveries), fill pickup/dropoff/time_constraint; otherwise use empty strings for those fields.
+- web_search_query must be a concise search-engine query reflecting the user's goal (no PII).
+- user_goal_summary explains the intended action in plain English.
+- required_conditions: snake_case tokens (e.g. wheelchair_assistance, no_subscription).
+Use empty string "" for unknown optional location/time fields.`;
 
   const res = await model.generateContent(prompt);
   const text = res.response.text();
-  return extractJsonObject(text);
+  const obj = extractJsonObject(text);
+  if (typeof obj.pickup !== "string") obj.pickup = "";
+  if (typeof obj.dropoff !== "string") obj.dropoff = "";
+  if (typeof obj.time_constraint !== "string") obj.time_constraint = "";
+  return obj;
 }
 
 export async function classifyHighImpactAction(task: Record<string, unknown>) {
@@ -92,9 +113,9 @@ export async function classifyHighImpactAction(task: Record<string, unknown>) {
       approval_required: true,
       risk_level: "medium",
       reason:
-        "The agent is booking transportation, spending money, sharing location data, and using accessibility-related information.",
-      sensitive_fields: ["pickup_location", "dropoff_location", "accessibility_need"],
-      demo: true,
+        "Autonomous agent may spend money, share personal data, or commit to an external party — requires action-bound human approval.",
+      sensitive_fields: ["contact_preferences", "delivery_or_location_details"],
+      planner_fallback: true,
     };
   }
 
@@ -126,7 +147,8 @@ export async function classifyHighImpactAction(task: Record<string, unknown>) {
     },
   });
 
-  const prompt = `Classify whether executing this agent task is a high-impact action requiring human approval.
+  const prompt = `Classify whether executing this agent task is a high-impact action requiring human approval before execution (money, bookings, forms, sensitive data, external commitments).
+
 Task JSON:\n${JSON.stringify(task)}`;
 
   const res = await model.generateContent(prompt);

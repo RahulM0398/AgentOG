@@ -7,11 +7,10 @@ export default function RidesPage() {
       <header className="dash-hero" style={{ marginBottom: "1.5rem" }}>
         <h1>Mock ride marketplace</h1>
         <p className="dash-tagline">
-          Controlled HTML surface for Browser Use — not a live Uber or Lyft integration.
+          Optional static fixture — the production demo uses Browser Use on the live web instead of this page.
         </p>
         <p className="dash-hero-lead" style={{ marginTop: "0.75rem" }}>
-          AgentOG stays domain-agnostic; this page exists so the agent can <strong style={{ color: "var(--text)" }}>research</strong> options,
-          then the API fingerprints the chosen vendor, price, time, and conditions before any payment step.
+          Keep this file only if you want a deterministic HTML lab for Browser Use. The main pipeline starts from a real search engine URL built from the caller transcript.
         </p>
       </header>
 

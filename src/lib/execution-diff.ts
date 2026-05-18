@@ -60,6 +60,12 @@ export function describePayloadDiff(
       `Action type changed from ${approved.action_type} to ${finalPayload.action_type}`,
     );
   }
+  if (norm(approved.action_summary) !== norm(finalPayload.action_summary)) {
+    reasons.push("Action summary changed");
+  }
+  if (norm(approved.research_source_url) !== norm(finalPayload.research_source_url)) {
+    reasons.push("Research source URL changed");
+  }
   return reasons;
 }
 

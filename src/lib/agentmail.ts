@@ -49,22 +49,29 @@ export function buildApprovalEmail(params: {
   intentSummary: Record<string, unknown>;
 }) {
   const subject = "AgentOG Approval Required: High-Impact Agent Action";
+  const sum = params.intentSummary;
+  const summaryLine = sum.action_summary
+    ? `\nSummary: ${sum.action_summary}`
+    : "";
+  const sourceLine = sum.research_source_url
+    ? `\nSource (research): ${sum.research_source_url}`
+    : "";
   const text = `Your AI agent wants to complete this exact action:
 
-Action: ${params.intentSummary.action_label ?? "High-impact action"}
-Vendor: ${params.intentSummary.vendor}
-Amount: $${params.intentSummary.amount}
-Pickup: ${params.intentSummary.pickup}
-Dropoff: ${params.intentSummary.dropoff}
-Time: ${params.intentSummary.scheduled_time}
-Required conditions: ${JSON.stringify(params.intentSummary.required_conditions)}
-Risk: ${params.intentSummary.risk_level}
+Action: ${sum.action_label ?? "High-impact action"}
+Vendor / option: ${sum.vendor}
+Amount: $${sum.amount}
+Pickup: ${sum.pickup ?? "—"}
+Dropoff: ${sum.dropoff ?? "—"}
+Time / detail: ${sum.scheduled_time}${summaryLine}${sourceLine}
+Required conditions: ${JSON.stringify(sum.required_conditions)}
+Risk: ${sum.risk_level}
 
 Data shared:
-${(params.intentSummary.data_shared as string[])?.map((x) => `- ${x}`).join("\n")}
+${(sum.data_shared as string[])?.map((x) => `- ${x}`).join("\n")}
 
 Data blocked:
-${(params.intentSummary.data_blocked as string[])?.map((x) => `- ${x}`).join("\n")}
+${(sum.data_blocked as string[])?.map((x) => `- ${x}`).join("\n")}
 
 Verification code: ${params.verificationCode}
 
@@ -76,12 +83,15 @@ ${params.approvalUrl}
   <p><strong>AgentOG Approval Required</strong></p>
   <p>Your AI agent wants to complete this <strong>exact</strong> action.</p>
   <ul>
-    <li><strong>Vendor:</strong> ${params.intentSummary.vendor}</li>
-    <li><strong>Amount:</strong> $${params.intentSummary.amount}</li>
-    <li><strong>Pickup:</strong> ${params.intentSummary.pickup}</li>
-    <li><strong>Dropoff:</strong> ${params.intentSummary.dropoff}</li>
-    <li><strong>Time:</strong> ${params.intentSummary.scheduled_time}</li>
-    <li><strong>Risk:</strong> ${params.intentSummary.risk_level}</li>
+    <li><strong>Action:</strong> ${sum.action_label ?? ""}</li>
+    <li><strong>Vendor / option:</strong> ${sum.vendor}</li>
+    <li><strong>Amount:</strong> $${sum.amount}</li>
+    <li><strong>Pickup:</strong> ${sum.pickup ?? "—"}</li>
+    <li><strong>Dropoff:</strong> ${sum.dropoff ?? "—"}</li>
+    <li><strong>Time / detail:</strong> ${sum.scheduled_time}</li>
+    ${sum.action_summary ? `<li><strong>Summary:</strong> ${String(sum.action_summary).replace(/</g, "&lt;")}</li>` : ""}
+    ${sum.research_source_url ? `<li><strong>Research URL:</strong> <a href="${String(sum.research_source_url)}">${String(sum.research_source_url)}</a></li>` : ""}
+    <li><strong>Risk:</strong> ${sum.risk_level}</li>
   </ul>
   <p><strong>Verification code:</strong> ${params.verificationCode}</p>
   <p><a href="${params.approvalUrl}">Approve Exact Action</a></p>

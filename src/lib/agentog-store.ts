@@ -141,6 +141,15 @@ class AgentOGMemoryStore {
   recordWebhook(id: string) {
     if (id.trim()) this.webhookSeen.set(id, Date.now());
   }
+
+  /** Clear demo state for a fresh judge run (intents, audit tail, dashboard snapshot). */
+  resetDemo(): void {
+    this.intents.clear();
+    this.audit = [];
+    this.executions = [];
+    this.webhookSeen.clear();
+    this.dashboard = { updated_at: nowIso() };
+  }
 }
 
 export function getStore(): AgentOGMemoryStore {
